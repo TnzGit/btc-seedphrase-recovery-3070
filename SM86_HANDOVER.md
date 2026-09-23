@@ -67,7 +67,9 @@ The `opt/sm86-rtx3070-core` branch stops before this change and should be used t
 
 ## Validation status
 
-The code has been reviewed structurally and the repository contains CI intended to run:
+The code has been reviewed structurally. In addition, the rolling SHA-512 schedule was independently checked against multiple standard SHA-512 vectors, and the fixed-64-byte HMAC/PBKDF2 path was checked against standard HMAC-SHA512 for 2048 iterations.
+
+The repository contains CI for:
 
 - `cargo check`
 - CUDA PTX compilation for `compute_86`
@@ -94,20 +96,18 @@ chmod +x scripts/bench_sm86.sh
 
 Record at least three runs per block size if results are noisy.
 
-Also benchmark:
+Also benchmark all three code states with the same inline loop. The helper script only exists on the v1 branch, so use this form when switching branches:
 
 ```bash
-git checkout main
-cargo build --release
-./scripts/bench_sm86.sh
-
-git checkout opt/sm86-rtx3070-core
-cargo build --release
-./scripts/bench_sm86.sh
-
-git checkout opt/sm86-rtx3070-v1
-cargo build --release
-./scripts/bench_sm86.sh
+for ref in main opt/sm86-rtx3070-core opt/sm86-rtx3070-v1; do
+  git checkout "$ref"
+  cargo build --release
+  echo "===== $ref ====="
+  for b in 64 128 256 512; do
+    echo "--- block $b ---"
+    SEEDPHRASE_BLOCK="$b" ./target/release/seedphrase_recovery --bench
+  done
+done
 ```
 
 Use the same GPU power limit, clocks, thermals, driver, CUDA toolkit, and machine state.
