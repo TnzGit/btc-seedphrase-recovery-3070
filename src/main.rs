@@ -524,13 +524,14 @@ fn run_bench() {
         Err(e) => eprintln!("Kernel resource query warning: {e}"),
     }
     println!(
-        "Bench config: block={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}  noinline_pbkdf2={}  pbkdf2_scalar_ut={}",
+        "Bench config: block={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}  noinline_pbkdf2={}  pbkdf2_scalar_ut={}  pbkdf2_t_shared={}",
         std::env::var("SEEDPHRASE_BLOCK").unwrap_or_else(|_| "256(default)".to_string()),
         std::env::var("SEEDPHRASE_LB_MIN_BLOCKS").unwrap_or_else(|_| "2(default)".to_string()),
         std::env::var("SEEDPHRASE_NOINLINE_SHA512_WORDS").unwrap_or_else(|_| "0(default)".to_string()),
         std::env::var("SEEDPHRASE_NOINLINE_FIXED64_HMAC").unwrap_or_else(|_| "0(default)".to_string()),
         std::env::var("SEEDPHRASE_NOINLINE_PBKDF2").unwrap_or_else(|_| "0(default)".to_string()),
         std::env::var("SEEDPHRASE_PBKDF2_SCALAR_UT").unwrap_or_else(|_| "0(default)".to_string()),
+        std::env::var("SEEDPHRASE_PBKDF2_T_SHARED").unwrap_or_else(|_| "0(default)".to_string()),
     );
     let wordlist = Language::English.word_list();
     let abandon_idx = wordlist.iter().position(|w| *w == "abandon").unwrap() as u16;
