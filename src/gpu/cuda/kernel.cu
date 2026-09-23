@@ -461,7 +461,16 @@ __device__ void hmac_sha512(
 
 /* PBKDF2-HMAC-SHA512 producing exactly one 64-byte block (dkLen = 64).
  * salt should already include the 4-byte big-endian block counter (e.g. "mnemonic\0\0\0\1"). */
-__device__ void pbkdf2_hmac_sha512_block(
+#ifndef RECOVERY_NOINLINE_PBKDF2
+#define RECOVERY_NOINLINE_PBKDF2 0
+#endif
+#if RECOVERY_NOINLINE_PBKDF2
+#define RECOVERY_PBKDF2_INLINE __noinline__
+#else
+#define RECOVERY_PBKDF2_INLINE
+#endif
+
+__device__ RECOVERY_PBKDF2_INLINE void pbkdf2_hmac_sha512_block(
     const uint8_t* pwd, int pwd_len,
     const uint8_t* salt, int salt_len,
     int iterations,
