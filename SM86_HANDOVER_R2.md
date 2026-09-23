@@ -40,6 +40,18 @@ Spill columns are stores / loads reported by ptxas.
 
 This strongly supports the measured result: occupancy gains beyond min-blocks=2 are overwhelmed by spill traffic. The next optimization target should be reducing PBKDF2/SHA live ranges at 128 registers, not forcing the register cap lower.
 
+
+### Inline/noinline ptxas probes at (256,2)
+
+| mode | kernel stack/spills | relevant function spills | static read |
+|---|---|---|---|
+| A default inline | 1952 B, kernel 0/0 | HMAC 512/512; PBKDF2 856/872 | measured reference |
+| B SHA words noinline | 1936 B, kernel 1092/1224 | SHA function 0/0 | spill moved across call boundary; hardware A/B required |
+| C fixed64 HMAC noinline | 2416 B, kernel 0/0 | PBKDF2 1324/1360; fixed64 HMAC 0/0 | statically unattractive; lowest priority |
+| D both noinline | 1968 B, kernel 1044/1188 | SHA + fixed64 HMAC 0/0 | spill moved across call boundary; hardware A/B required |
+
+Spill pairs are stores/loads. These are allocation figures, not dynamic memory-transaction counts, so B/D cannot be accepted or rejected from ptxas alone. C, however, increases the PBKDF2 spill allocation substantially without reducing the 128-register cap and should only be tested after B/D, if at all.
+
 ## R2 code changes
 
 R2 keeps the measured production default `__launch_bounds__(256,2)` and block 256, then adds only diagnostics / experiment infrastructure by default:
@@ -68,12 +80,12 @@ Do not upload the full multi-gigabyte scratch directory. Commit only the compact
 
 The next round should test whether function-call boundaries reduce spills enough to outweigh CUDA device-call overhead.
 
-At fixed block 256 and min-blocks=2, compare:
+At fixed block 256 and min-blocks=2, compare in this priority order:
 
 - A: current/default inline path
 - B: `SEEDPHRASE_NOINLINE_SHA512_WORDS=1`
-- C: `SEEDPHRASE_NOINLINE_FIXED64_HMAC=1`
 - D: both flags = 1
+- C: `SEEDPHRASE_NOINLINE_FIXED64_HMAC=1` only if time permits; static ptxas makes it the least promising
 
 Use `weighted_steady` as the primary throughput metric.
 
