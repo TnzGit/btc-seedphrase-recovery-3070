@@ -1,0 +1,40 @@
+name: SM86 geometry static screen
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-geometry-static
+  workflow_dispatch:
+
+jobs:
+  geometry:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - max_threads: 256
+            min_blocks: 2
+          - max_threads: 128
+            min_blocks: 3
+          - max_threads: 96
+            min_blocks: 5
+          - max_threads: 160
+            min_blocks: 3
+          - max_threads: 192
+            min_blocks: 2
+          - max_threads: 224
+            min_blocks: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile geometry
+        run: |
+          echo "=== launch_bounds(${{ matrix.max_threads }}, ${{ matrix.min_blocks }}) ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MAX_THREADS=${{ matrix.max_threads }} \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=${{ matrix.min_blocks }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/g-${{ matrix.max_threads }}-${{ matrix.min_blocks }}.cubin
