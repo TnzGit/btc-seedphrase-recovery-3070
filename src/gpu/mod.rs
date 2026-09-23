@@ -71,9 +71,26 @@ impl Gpu {
             Err(std::env::VarError::NotPresent) => 2,
             Err(e) => return Err(format!("read SEEDPHRASE_LB_MIN_BLOCKS: {e}")),
         };
+        let parse_probe_flag = |name: &str| -> Result<bool, String> {
+            match std::env::var(name) {
+                Ok(raw) => match raw.as_str() {
+                    "0" | "false" | "FALSE" => Ok(false),
+                    "1" | "true" | "TRUE" => Ok(true),
+                    _ => Err(format!("invalid {name}={raw:?}: expected 0/1 or false/true")),
+                },
+                Err(std::env::VarError::NotPresent) => Ok(false),
+                Err(e) => Err(format!("read {name}: {e}")),
+            }
+        };
+        let noinline_sha512_words = parse_probe_flag("SEEDPHRASE_NOINLINE_SHA512_WORDS")?;
+        let noinline_fixed64_hmac = parse_probe_flag("SEEDPHRASE_NOINLINE_FIXED64_HMAC")?;
+
         let kernel_src = format!(
-            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n{}",
-            lb_min_blocks, KERNEL_SRC
+            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n{}",
+            lb_min_blocks,
+            if noinline_sha512_words { 1 } else { 0 },
+            if noinline_fixed64_hmac { 1 } else { 0 },
+            KERNEL_SRC
         );
         let ptx = compile_ptx_with_opts(&kernel_src, opts)
             .map_err(|e| format!("nvrtc compile failed: {e}"))?;
