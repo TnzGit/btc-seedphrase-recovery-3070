@@ -1,0 +1,25 @@
+name: SM86 static checks
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-v1
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check
+
+  cuda-ptx:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile CUDA kernel to PTX for SM86
+        run: nvcc -ptx -arch=compute_86 src/gpu/cuda/kernel.cu -o /tmp/kernel.ptx
