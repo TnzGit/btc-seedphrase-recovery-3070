@@ -1,0 +1,3 @@
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=128 local/thread=2128B shared/block=0B max_threads/block=256
+GPU self-test: FAIL: self-test vector 0 FAILED: no match for bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu

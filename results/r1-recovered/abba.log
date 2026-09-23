@@ -1,0 +1,9 @@
+abba1-core chunks=5 sum=161.391 weighted=129942 avg_smclk=1847 avg_power=164.0
+abba2-v1 chunks=5 sum=67.505 weighted=310666 avg_smclk=1867 avg_power=199.5
+abba3-v1 chunks=5 sum=68.780 weighted=304907 avg_smclk=1851 avg_power=189.7
+abba4-core chunks=5 sum=68.409 weighted=306560 avg_smclk=1868 avg_power=192.2
+abba5-core chunks=5 sum=67.742 weighted=309579 avg_smclk=1851 avg_power=193.7
+abba6-v1 chunks=5 sum=67.916 weighted=308786 avg_smclk=1848 avg_power=190.2
+abba7-v1 chunks=5 sum=68.621 weighted=305613 avg_smclk=1881 avg_power=190.8
+abba8-core chunks=5 sum=69.546 weighted=301548 avg_smclk=1846 avg_power=189.9
+ABBA DONE

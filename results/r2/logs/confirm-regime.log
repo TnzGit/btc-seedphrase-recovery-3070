@@ -1,0 +1,11 @@
+--- confirm round 1: A B B A ---
+conf-r1-A1 exit=0 steady=377875 power=206.4W sm=1730MHz mem=5948MHz n=60
+conf-r1-B1 exit=0 steady=357996 power=219.0W sm=1796MHz mem=6268MHz n=60
+conf-r1-B2 exit=0 steady=356918 power=219.6W sm=1788MHz mem=6268MHz n=60
+conf-r1-A2 exit=0 steady=373123 power=207.3W sm=1713MHz mem=5962MHz n=61
+--- confirm round 2: A B B A ---
+conf-r2-A1 exit=0 steady=373057 power=207.2W sm=1713MHz mem=5962MHz n=61
+conf-r2-B1 exit=0 steady=355811 power=219.0W sm=1788MHz mem=6277MHz n=61
+conf-r2-B2 exit=0 steady=355805 power=217.9W sm=1757MHz mem=6172MHz n=61
+conf-r2-A2 exit=0 steady=372960 power=207.7W sm=1712MHz mem=5962MHz n=61
+CONFIRM DONE

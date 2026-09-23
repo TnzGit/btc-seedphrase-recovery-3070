@@ -1,0 +1,10 @@
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=128 local/thread=1968B shared/block=0B max_threads/block=256
+Bench config: block=256  lb_min_blocks=2  noinline_sha512_words=1  noinline_fixed64_hmac=1  noinline_pbkdf2=0
+chunk #0  elapsed = 14.147s  rate = 0.30 M c/s
+chunk #1  elapsed = 14.182s  rate = 0.30 M c/s
+chunk #2  elapsed = 14.213s  rate = 0.30 M c/s
+chunk #3  elapsed = 14.230s  rate = 0.29 M c/s
+chunk #4  elapsed = 14.187s  rate = 0.30 M c/s
+total 20971520 candidates in 70.959s  weighted_all = 295543 c/s
+steady(chunks 1..4) 16777216 candidates in 56.812s  weighted_steady = 295310 c/s

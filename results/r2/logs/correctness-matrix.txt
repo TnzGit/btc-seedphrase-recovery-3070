@@ -1,0 +1,24 @@
+# R2 correctness matrix: all 8 noinline flag combinations (block=256 lb=2)
+# columns: sha hmac pbkdf2 exit result
+sha=0 hmac=0 pbkdf2=0 exit=0 PASS (3/3
+sha=0 hmac=0 pbkdf2=1 exit=0 PASS (3/3
+sha=0 hmac=1 pbkdf2=0 exit=0 PASS (3/3
+sha=0 hmac=1 pbkdf2=1 exit=0 PASS (3/3
+sha=1 hmac=0 pbkdf2=0 exit=0 PASS (3/3
+sha=1 hmac=0 pbkdf2=1 exit=1 FAIL
+sha=1 hmac=1 pbkdf2=0 exit=0 PASS (3/3
+sha=1 hmac=1 pbkdf2=1 exit=0 PASS (3/3
+
+# Safety sweep of the DEFAULT path (all flags 0) across launch-bounds x block
+A lb=1 block=64 exit=0 PASS (3/3
+A lb=1 block=128 exit=0 PASS (3/3
+A lb=1 block=256 exit=0 PASS (3/3
+A lb=2 block=64 exit=0 PASS (3/3
+A lb=2 block=128 exit=0 PASS (3/3
+A lb=2 block=256 exit=0 PASS (3/3
+A lb=3 block=64 exit=0 PASS (3/3
+A lb=3 block=128 exit=0 PASS (3/3
+A lb=3 block=256 exit=0 PASS (3/3
+A lb=4 block=64 exit=0 PASS (3/3
+A lb=4 block=128 exit=0 PASS (3/3
+A lb=4 block=256 exit=0 PASS (3/3

@@ -1,0 +1,49 @@
+########## SCREEN r1-A (sha=0 hmac=0 pbkdf2=0) ##########
+exit=0 weighted_steady=316801 weighted_all=317543
+Kernel resources: regs/thread=128 local/thread=2016B shared/block=0B max_threads/block=256
+  telemetry n=71 avg_util=90.5% avg_power=200.2W avg_sm=1851MHz avg_mem=6455MHz avg_temp=60.2C max_power=228.9W max_sm=1995MHz max_temp=65C
+########## SCREEN r1-B (sha=1 hmac=0 pbkdf2=0) ##########
+exit=0 weighted_steady=303303 weighted_all=303482
+Kernel resources: regs/thread=128 local/thread=1936B shared/block=0B max_threads/block=256
+  telemetry n=74 avg_util=90.2% avg_power=204.5W avg_sm=1888MHz avg_mem=6647MHz avg_temp=62.5C max_power=236.5W max_sm=1980MHz max_temp=67C
+########## SCREEN r1-D (sha=1 hmac=1 pbkdf2=0) ##########
+exit=0 weighted_steady=295310 weighted_all=295543
+Kernel resources: regs/thread=128 local/thread=1968B shared/block=0B max_threads/block=256
+  telemetry n=76 avg_util=90.9% avg_power=213.2W avg_sm=1867MHz avg_mem=6549MHz avg_temp=64.1C max_power=238.8W max_sm=1980MHz max_temp=68C
+########## SCREEN r1-E (sha=1 hmac=0 pbkdf2=1) ##########
+exit=0 weighted_steady=295930 weighted_all=296151
+Kernel resources: regs/thread=128 local/thread=2128B shared/block=0B max_threads/block=256
+  telemetry n=77 avg_util=89.6% avg_power=203.1W avg_sm=1892MHz avg_mem=6606MHz avg_temp=63.7C max_power=229.9W max_sm=1980MHz max_temp=67C
+########## SCREEN r1-F (sha=1 hmac=1 pbkdf2=1) ##########
+exit=0 weighted_steady=290919 weighted_all=291318
+Kernel resources: regs/thread=128 local/thread=2272B shared/block=0B max_threads/block=256
+  telemetry n=77 avg_util=91.0% avg_power=213.7W avg_sm=1886MHz avg_mem=6575MHz avg_temp=64.9C max_power=239.4W max_sm=1965MHz max_temp=69C
+########## SCREEN r1-C (sha=0 hmac=1 pbkdf2=0) ##########
+exit=0 weighted_steady=305529 weighted_all=305897
+Kernel resources: regs/thread=128 local/thread=2368B shared/block=0B max_threads/block=256
+  telemetry n=89 avg_util=78.6% avg_power=177.8W avg_sm=1761MHz avg_mem=6202MHz avg_temp=61.5C max_power=236.4W max_sm=1980MHz max_temp=68C
+########## SCREEN r2-A (sha=0 hmac=0 pbkdf2=0) ##########
+exit=0 weighted_steady=315262 weighted_all=315644
+Kernel resources: regs/thread=128 local/thread=2016B shared/block=0B max_threads/block=256
+  telemetry n=72 avg_util=90.4% avg_power=202.2W avg_sm=1850MHz avg_mem=6426MHz avg_temp=63.6C max_power=233.8W max_sm=1980MHz max_temp=68C
+########## SCREEN r2-B (sha=1 hmac=0 pbkdf2=0) ##########
+exit=0 weighted_steady=315217 weighted_all=316299
+Kernel resources: regs/thread=128 local/thread=1936B shared/block=0B max_threads/block=256
+  telemetry n=68 avg_util=95.1% avg_power=219.3W avg_sm=1846MHz avg_mem=6360MHz avg_temp=65.4C max_power=239.1W max_sm=1980MHz max_temp=69C
+########## SCREEN r2-D (sha=1 hmac=1 pbkdf2=0) ##########
+exit=0 weighted_steady=312943 weighted_all=313582
+Kernel resources: regs/thread=128 local/thread=1968B shared/block=0B max_threads/block=256
+  telemetry n=69 avg_util=93.9% avg_power=219.9W avg_sm=1841MHz avg_mem=6341MHz avg_temp=65.5C max_power=239.4W max_sm=1965MHz max_temp=69C
+########## SCREEN r2-E (sha=1 hmac=0 pbkdf2=1) ##########
+exit=0 weighted_steady=318199 weighted_all=317931
+Kernel resources: regs/thread=128 local/thread=2128B shared/block=0B max_threads/block=256
+  telemetry n=68 avg_util=94.0% avg_power=217.8W avg_sm=1858MHz avg_mem=6396MHz avg_temp=65.5C max_power=238.8W max_sm=1980MHz max_temp=69C
+########## SCREEN r2-F (sha=1 hmac=1 pbkdf2=1) ##########
+exit=0 weighted_steady=297853 weighted_all=297931
+Kernel resources: regs/thread=128 local/thread=2272B shared/block=0B max_threads/block=256
+  telemetry n=71 avg_util=95.0% avg_power=221.0W avg_sm=1856MHz avg_mem=6556MHz avg_temp=65.8C max_power=239.4W max_sm=1965MHz max_temp=69C
+########## SCREEN r2-C (sha=0 hmac=1 pbkdf2=0) ##########
+exit=0 weighted_steady=312332 weighted_all=312439
+Kernel resources: regs/thread=128 local/thread=2368B shared/block=0B max_threads/block=256
+  telemetry n=72 avg_util=91.0% avg_power=208.2W avg_sm=1839MHz avg_mem=6401MHz avg_temp=64.7C max_power=238.0W max_sm=1980MHz max_temp=69C
+########## SCREEN DONE ##########

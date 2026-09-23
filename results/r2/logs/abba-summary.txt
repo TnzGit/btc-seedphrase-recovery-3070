@@ -1,0 +1,39 @@
+########## PHASE2 A vs B ##########
+XB-r1-A1 exit=0 steady=325010 all=325038 util=90.0% power=203.2W maxp=233.8W sm=1845MHz mem=6445MHz temp=59.5C maxT=66C n=69
+XB-r1-B1 exit=0 steady=309933 all=310233 util=93.2% power=215.1W maxp=238.3W sm=1874MHz mem=6584MHz temp=64.1C maxT=68C n=69
+XB-r1-B2 exit=0 steady=308973 all=309562 util=94.0% power=214.2W maxp=236.9W sm=1868MHz mem=6467MHz temp=65.1C maxT=68C n=70
+XB-r1-A2 exit=0 steady=323024 all=322684 util=91.3% power=204.3W maxp=234.0W sm=1833MHz mem=6210MHz temp=64.6C maxT=69C n=70
+XB-r2-A1 exit=0 steady=319961 all=320306 util=90.9% power=203.5W maxp=230.6W sm=1852MHz mem=6416MHz temp=64.5C maxT=68C n=70
+XB-r2-B1 exit=0 steady=303341 all=303632 util=92.9% power=211.5W maxp=232.8W sm=1870MHz mem=6451MHz temp=65.1C maxT=69C n=72
+XB-r2-B2 exit=0 steady=303835 all=304475 util=93.5% power=214.7W maxp=233.1W sm=1870MHz mem=6527MHz temp=65.4C maxT=69C n=70
+XB-r2-A2 exit=0 steady=317664 all=318278 util=90.4% power=202.0W maxp=230.4W sm=1840MHz mem=6514MHz temp=64.3C maxT=68C n=71
+XB-r3-A1 exit=0 steady=317165 all=317727 util=90.4% power=202.1W maxp=230.6W sm=1822MHz mem=6455MHz temp=64.2C maxT=68C n=71
+XB-r3-B1 exit=0 steady=304209 all=304179 util=94.4% power=215.2W maxp=233.5W sm=1891MHz mem=6672MHz temp=65.5C maxT=69C n=70
+XB-r3-B2 exit=0 steady=304772 all=304862 util=94.3% power=215.2W maxp=233.0W sm=1881MHz mem=6613MHz temp=65.7C maxT=69C n=70
+XB-r3-A2 exit=0 steady=318020 all=318181 util=90.9% power=203.1W maxp=230.5W sm=1849MHz mem=6337MHz temp=64.7C maxT=68C n=71
+########## PHASE2 A vs E ##########
+XE-r1-A1 exit=0 steady=317882 all=318092 util=90.9% power=202.9W maxp=230.7W sm=1825MHz mem=6455MHz temp=64.6C maxT=68C n=71
+XE-r1-E1 exit=0 steady=298378 all=298876 util=94.7% power=215.9W maxp=232.0W sm=1890MHz mem=6615MHz temp=65.9C maxT=69C n=71
+XE-r1-E2 exit=0 steady=298770 all=298903 util=93.9% power=214.2W maxp=232.1W sm=1873MHz mem=6590MHz temp=65.9C maxT=69C n=71
+XE-r1-A2 exit=0 steady=318220 all=318521 util=91.2% power=204.3W maxp=231.0W sm=1855MHz mem=6476MHz temp=65.0C maxT=69C n=70
+XE-r2-A1 exit=0 steady=318386 all=318703 util=90.9% power=203.2W maxp=230.8W sm=1831MHz mem=6396MHz temp=64.7C maxT=68C n=71
+XE-r2-E1 exit=0 steady=299226 all=299264 util=94.7% power=215.0W maxp=231.9W sm=1888MHz mem=6615MHz temp=65.9C maxT=69C n=71
+XE-r2-E2 exit=0 steady=299439 all=299696 util=94.7% power=214.6W maxp=232.0W sm=1888MHz mem=6615MHz temp=66.0C maxT=69C n=71
+XE-r2-A2 exit=0 steady=318128 all=318517 util=90.5% power=202.0W maxp=230.1W sm=1836MHz mem=6514MHz temp=64.8C maxT=68C n=71
+XE-r3-A1 exit=0 steady=318510 all=318636 util=90.5% power=202.3W maxp=230.1W sm=1849MHz mem=6514MHz temp=64.7C maxT=69C n=71
+XE-r3-E1 exit=0 steady=299392 all=299468 util=95.1% power=215.0W maxp=234.0W sm=1891MHz mem=6556MHz temp=65.9C maxT=69C n=71
+XE-r3-E2 exit=0 steady=300246 all=300338 util=94.7% power=215.6W maxp=232.4W sm=1881MHz mem=6556MHz temp=66.2C maxT=69C n=71
+XE-r3-A2 exit=0 steady=319191 all=319821 util=90.8% power=203.6W maxp=230.9W sm=1846MHz mem=6396MHz temp=65.0C maxT=69C n=71
+########## PHASE2 A vs C ##########
+XC-r1-A1 exit=0 steady=318220 all=318571 util=91.0% power=202.5W maxp=230.5W sm=1837MHz mem=6337MHz temp=64.8C maxT=69C n=71
+XC-r1-C1 exit=0 steady=307260 all=307824 util=90.8% power=206.3W maxp=232.7W sm=1853MHz mem=6489MHz temp=65.2C maxT=69C n=73
+XC-r1-C2 exit=0 steady=306415 all=306959 util=90.5% power=206.0W maxp=231.7W sm=1856MHz mem=6489MHz temp=65.1C maxT=69C n=73
+XC-r1-A2 exit=0 steady=317873 all=318149 util=89.3% power=198.1W maxp=230.1W sm=1831MHz mem=6497MHz temp=64.4C maxT=68C n=73
+XC-r2-A1 exit=0 steady=318037 all=318310 util=90.9% power=201.5W maxp=231.0W sm=1841MHz mem=6396MHz temp=64.6C maxT=68C n=71
+XC-r2-C1 exit=0 steady=347027 all=347349 util=89.0% power=208.0W maxp=239.1W sm=1792MHz mem=6220MHz temp=65.4C maxT=70C n=66
+XC-r2-C2 exit=0 steady=347088 all=347637 util=89.5% power=208.0W maxp=239.3W sm=1704MHz mem=5929MHz temp=65.3C maxT=70C n=66
+XC-r2-A2 exit=0 steady=359791 all=360115 util=90.9% power=206.1W maxp=238.3W sm=1725MHz mem=5989MHz temp=65.1C maxT=69C n=63
+XC-r3-A1 exit=0 steady=359707 all=360029 util=90.7% power=205.4W maxp=238.7W sm=1725MHz mem=5989MHz temp=64.9C maxT=69C n=63
+XC-r3-C1 exit=0 steady=347138 all=347460 util=90.5% power=208.4W maxp=239.3W sm=1730MHz mem=6014MHz temp=65.3C maxT=70C n=65
+XC-r3-C2 exit=0 steady=347391 all=347814 util=90.2% power=210.7W maxp=239.0W sm=1762MHz mem=6118MHz temp=65.5C maxT=70C n=65
+XC-r3-A2 exit=0 steady=372650 all=372956 util=89.5% power=207.1W maxp=239.2W sm=1715MHz mem=5976MHz temp=65.1C maxT=69C n=62

@@ -1,0 +1,20 @@
+===== BUILD main =====
+exit=0
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.6
+   Compiling secp256k1 v0.27.0
+   Compiling seedphrase_recovery v0.1.0 (/tmp/btc3070bench-j9PBaw/repo)
+    Finished `release` profile [optimized] target(s) in 33.38s
+binary -> /tmp/btc3070bench-j9PBaw/bin/seed-main
+===== BUILD opt/sm86-rtx3070-core =====
+exit=0
+   Compiling seedphrase_recovery v0.1.0 (/tmp/btc3070bench-j9PBaw/repo)
+    Finished `release` profile [optimized] target(s) in 6.34s
+binary -> /tmp/btc3070bench-j9PBaw/bin/seed-opt_sm86-rtx3070-core
+===== BUILD opt/sm86-rtx3070-v1 =====
+exit=0
+   Compiling seedphrase_recovery v0.1.0 (/tmp/btc3070bench-j9PBaw/repo)
+    Finished `release` profile [optimized] target(s) in 7.25s
+binary -> /tmp/btc3070bench-j9PBaw/bin/seed-opt_sm86-rtx3070-v1
+===== BUILD PHASE DONE =====

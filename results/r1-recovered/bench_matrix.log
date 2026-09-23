@@ -1,0 +1,100 @@
+### GPU STATE BEFORE MATRIX
+NVIDIA GeForce RTX 3070, 596.36, 240.00 W, 240.00 W, 2115 MHz, 7001 MHz, 40, P3
+### nvidia-smi -q power/clocks
+        Current Power Limit                            : 240.00 W
+        Requested Power Limit                          : 240.00 W
+        Default Power Limit                            : 240.00 W
+        Min Power Limit                                : 100.00 W
+        Max Power Limit                                : 250.00 W
+        Current Power Limit                            : N/A
+        Requested Power Limit                          : N/A
+        Default Power Limit                            : N/A
+        Min Power Limit                                : N/A
+        Max Power Limit                                : N/A
+        Graphics                                       : 705 MHz
+        SM                                             : 705 MHz
+########## RUN main__b64 ##########
+exit=0 wall=87.712572551
+chunk #0  elapsed = 15.067s  rate = 0.28 M c/s
+chunk #1  elapsed = 14.576s  rate = 0.29 M c/s
+chunk #2  elapsed = 14.706s  rate = 0.29 M c/s
+chunk #3  elapsed = 14.649s  rate = 0.29 M c/s
+chunk #4  elapsed = 14.883s  rate = 0.28 M c/s
+########## RUN main__b128 ##########
+exit=0 wall=86.505715669
+chunk #0  elapsed = 14.438s  rate = 0.29 M c/s
+chunk #1  elapsed = 14.558s  rate = 0.29 M c/s
+chunk #2  elapsed = 14.351s  rate = 0.29 M c/s
+chunk #3  elapsed = 14.372s  rate = 0.29 M c/s
+chunk #4  elapsed = 14.432s  rate = 0.29 M c/s
+########## RUN main__b256 ##########
+exit=0 wall=83.505415555
+chunk #0  elapsed = 14.008s  rate = 0.30 M c/s
+chunk #1  elapsed = 14.039s  rate = 0.30 M c/s
+chunk #2  elapsed = 13.977s  rate = 0.30 M c/s
+chunk #3  elapsed = 14.023s  rate = 0.30 M c/s
+chunk #4  elapsed = 14.000s  rate = 0.30 M c/s
+########## RUN main__b512 ##########
+exit=0 wall=13.629472282
+chunk #0  elapsed = 0.002s  rate = 2072.20 M c/s
+chunk #1  elapsed = 0.000s  rate = 32894.44 M c/s
+chunk #2  elapsed = 0.000s  rate = 34601.90 M c/s
+chunk #3  elapsed = 0.000s  rate = 38542.44 M c/s
+chunk #4  elapsed = 0.000s  rate = 45293.39 M c/s
+########## RUN opt_sm86-rtx3070-core__b64 ##########
+exit=0 wall=80.400647179
+chunk #0  elapsed = 14.202s  rate = 0.30 M c/s
+chunk #1  elapsed = 14.132s  rate = 0.30 M c/s
+chunk #2  elapsed = 14.143s  rate = 0.30 M c/s
+chunk #3  elapsed = 14.178s  rate = 0.30 M c/s
+chunk #4  elapsed = 13.918s  rate = 0.30 M c/s
+########## RUN opt_sm86-rtx3070-core__b128 ##########
+exit=0 wall=81.050946865
+chunk #0  elapsed = 14.222s  rate = 0.29 M c/s
+chunk #1  elapsed = 14.046s  rate = 0.30 M c/s
+chunk #2  elapsed = 14.163s  rate = 0.30 M c/s
+chunk #3  elapsed = 14.354s  rate = 0.29 M c/s
+chunk #4  elapsed = 14.159s  rate = 0.30 M c/s
+########## RUN opt_sm86-rtx3070-core__b256 ##########
+exit=0 wall=77.803206190
+chunk #0  elapsed = 13.419s  rate = 0.31 M c/s
+chunk #1  elapsed = 13.421s  rate = 0.31 M c/s
+chunk #2  elapsed = 13.563s  rate = 0.31 M c/s
+chunk #3  elapsed = 13.843s  rate = 0.30 M c/s
+chunk #4  elapsed = 13.963s  rate = 0.30 M c/s
+########## RUN opt_sm86-rtx3070-core__b512 ##########
+exit=0 wall=10.021512675
+chunk #0  elapsed = 0.005s  rate = 842.76 M c/s
+chunk #1  elapsed = 0.000s  rate = 26645.22 M c/s
+chunk #2  elapsed = 0.000s  rate = 36515.39 M c/s
+chunk #3  elapsed = 0.000s  rate = 39093.15 M c/s
+chunk #4  elapsed = 0.000s  rate = 25652.45 M c/s
+########## RUN opt_sm86-rtx3070-v1__b64 ##########
+exit=0 wall=82.503244472
+chunk #0  elapsed = 14.225s  rate = 0.29 M c/s
+chunk #1  elapsed = 14.382s  rate = 0.29 M c/s
+chunk #2  elapsed = 14.320s  rate = 0.29 M c/s
+chunk #3  elapsed = 14.275s  rate = 0.29 M c/s
+chunk #4  elapsed = 14.341s  rate = 0.29 M c/s
+########## RUN opt_sm86-rtx3070-v1__b128 ##########
+exit=0 wall=81.097930299
+chunk #0  elapsed = 14.043s  rate = 0.30 M c/s
+chunk #1  elapsed = 14.205s  rate = 0.30 M c/s
+chunk #2  elapsed = 14.209s  rate = 0.30 M c/s
+chunk #3  elapsed = 14.326s  rate = 0.29 M c/s
+chunk #4  elapsed = 14.272s  rate = 0.29 M c/s
+########## RUN opt_sm86-rtx3070-v1__b256 ##########
+exit=0 wall=78.796939963
+chunk #0  elapsed = 13.928s  rate = 0.30 M c/s
+chunk #1  elapsed = 13.884s  rate = 0.30 M c/s
+chunk #2  elapsed = 13.845s  rate = 0.30 M c/s
+chunk #3  elapsed = 13.956s  rate = 0.30 M c/s
+chunk #4  elapsed = 13.836s  rate = 0.30 M c/s
+########## RUN opt_sm86-rtx3070-v1__b512 ##########
+exit=0 wall=9.720856861
+chunk #0  elapsed = 0.002s  rate = 2095.08 M c/s
+chunk #1  elapsed = 0.000s  rate = 44837.77 M c/s
+chunk #2  elapsed = 0.000s  rate = 56096.08 M c/s
+chunk #3  elapsed = 0.000s  rate = 39674.83 M c/s
+chunk #4  elapsed = 0.000s  rate = 53317.20 M c/s
+########## MATRIX DONE ##########

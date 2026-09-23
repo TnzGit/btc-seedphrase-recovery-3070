@@ -1,0 +1,7 @@
+Device: NVIDIA GeForce RTX 3070
+chunk #0  elapsed = 13.265s  rate = 0.32 M c/s
+chunk #1  elapsed = 13.312s  rate = 0.32 M c/s
+chunk #2  elapsed = 13.246s  rate = 0.32 M c/s
+chunk #3  elapsed = 13.206s  rate = 0.32 M c/s
+chunk #4  elapsed = 13.179s  rate = 0.32 M c/s
+total 20971520 candidates in 66.207s  weighted = 316758 c/s
