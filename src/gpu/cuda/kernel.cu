@@ -492,6 +492,9 @@ __device__ void hmac_sha512(
 #ifndef RECOVERY_PBKDF2_SCALAR_UT
 #define RECOVERY_PBKDF2_SCALAR_UT 0
 #endif
+#ifndef RECOVERY_PBKDF2_T_SHARED
+#define RECOVERY_PBKDF2_T_SHARED 0
+#endif
 
 #if RECOVERY_NOINLINE_SHA512_WORDS && RECOVERY_NOINLINE_PBKDF2 && !RECOVERY_NOINLINE_FIXED64_HMAC
 #error "Disabled: sha512_words noinline + PBKDF2 noinline + fixed64 HMAC inline failed the RTX 3070 BIP84 correctness gate"
@@ -550,6 +553,46 @@ __device__ RECOVERY_PBKDF2_INLINE void pbkdf2_hmac_sha512_block(
 
     sha512_state_to_bytes(T, out);
 #endif
+}
+
+/* R3 experiment: keep only the long-lived PBKDF2 XOR accumulator T in shared
+ * memory. The per-iteration digest U remains in registers. A transposed layout
+ * [word][thread] gives adjacent threads adjacent 64-bit locations and avoids
+ * the pathological stride that a per-thread struct would create. */
+__device__ __forceinline__ void pbkdf2_hmac_sha512_block_tshared(
+    const uint8_t* pwd, int pwd_len,
+    const uint8_t* salt, int salt_len,
+    int iterations,
+    uint8_t out[64],
+    uint64_t* t_shared,
+    int t_stride,
+    int tid
+) {
+    uint64_t ipad_state[8], opad_state[8];
+    hmac_sha512_precompute(pwd, pwd_len, ipad_state, opad_state);
+
+    uint8_t u1_bytes[64];
+    hmac_sha512_finish(ipad_state, opad_state, salt, salt_len, u1_bytes);
+
+    uint64_t U[8];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        U[i] = load_be64(u1_bytes + i * 8);
+        t_shared[i * t_stride + tid] = U[i];
+    }
+
+    for (int it = 1; it < iterations; it++) {
+        hmac_sha512_finish_fixed64_words(ipad_state, opad_state, U, U);
+        #pragma unroll
+        for (int i = 0; i < 8; i++) {
+            t_shared[i * t_stride + tid] ^= U[i];
+        }
+    }
+
+    uint64_t T_final[8];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) T_final[i] = t_shared[i * t_stride + tid];
+    sha512_state_to_bytes(T_final, out);
 }
 
 /* =========================================================================
@@ -1629,6 +1672,12 @@ extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVE
     const uint8_t* __restrict__ d_g_table,         /* 64 * 15 * 64 bytes precomputed G multiples */
     long long* __restrict__ d_match_idx            /* output: -1 or absolute cand index */
 ) {
+#if RECOVERY_PBKDF2_T_SHARED
+    /* 8 x 256 x u64 = 16 KiB/block. At the current 128-reg launch bound,
+     * two 256-thread blocks still fit within SM86's shared-memory budget. */
+    __shared__ uint64_t s_pbkdf2_t[8][RECOVERY_LAUNCH_MAX_THREADS];
+#endif
+
     /* The packed BIP39 table is only 24 KiB and is read once per candidate before
      * the long PBKDF2 loop. Keeping a 24 KiB copy per block caps SM86 residency, so
      * read it directly from global memory and let L1/L2 cache it. */
@@ -1728,7 +1777,14 @@ extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVE
 
     /* Run the pipeline. */
     uint8_t seed[64];
+#if RECOVERY_PBKDF2_T_SHARED
+    pbkdf2_hmac_sha512_block_tshared(
+        mnemonic, mnemonic_len, salt, salt_len, iterations, seed,
+        &s_pbkdf2_t[0][0], RECOVERY_LAUNCH_MAX_THREADS, (int)threadIdx.x
+    );
+#else
     pbkdf2_hmac_sha512_block(mnemonic, mnemonic_len, salt, salt_len, iterations, seed);
+#endif
 
     uint8_t I[64];
     {
