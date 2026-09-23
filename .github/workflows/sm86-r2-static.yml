@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Regression-test SM86 probe guard
+        run: cargo test sm86_probe_guard_rejects_only_known_bad_combo
       - run: cargo check
 
   ptxas-resources:
