@@ -44,7 +44,11 @@ fn build_g_table_bytes() -> Vec<u8> {
 impl Gpu {
     pub fn new() -> Result<Self, String> {
         let opts = CompileOptions {
-            use_fast_math: Some(true),
+            // This fork targets RTX 3070 / GA104 (SM86). Explicit virtual architecture
+            // lets NVRTC generate Ampere-aware PTX instead of relying on its toolkit default.
+            arch: Some("compute_86"),
+            // The hot path is integer SHA/secp256k1; fast-math does not help it.
+            use_fast_math: Some(false),
             ..Default::default()
         };
         let ptx = compile_ptx_with_opts(KERNEL_SRC, opts).map_err(|e| format!("nvrtc compile failed: {e}"))?;
@@ -155,12 +159,12 @@ impl Gpu {
         let path_len_i32 = path.len() as i32;
 
         /* Block size is overridable for benchmarking via the SEEDPHRASE_BLOCK env var. Final
-         * value is chosen empirically; see README for the trade-off. */
+         * SM86 fork defaults to 128; always benchmark 64/128/256 on the actual card. */
         let block: u32 = std::env::var("SEEDPHRASE_BLOCK")
             .ok()
             .and_then(|s| s.parse().ok())
             .filter(|&b: &u32| b >= 32 && b <= 1024)
-            .unwrap_or(64);
+            .unwrap_or(128);
         let grid: u32 = (chunk_size.div_ceil(block as u64) as u32).max(1);
         let cfg = LaunchConfig {
             grid_dim: (grid, 1, 1),
