@@ -88,6 +88,8 @@ impl Gpu {
         let pbkdf2_scalar_ut = parse_probe_flag("SEEDPHRASE_PBKDF2_SCALAR_UT")?;
         let pbkdf2_t_shared = parse_probe_flag("SEEDPHRASE_PBKDF2_T_SHARED")?;
         let pbkdf2_state_shared = parse_probe_flag("SEEDPHRASE_PBKDF2_STATE_SHARED")?;
+        let sha512_half_shared_schedule =
+            parse_probe_flag("SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE")?;
 
         // Hardware validation on the reference RTX 3070 found exactly one probe
         // combination that reproducibly produces wrong BIP84 results under NVRTC:
@@ -102,7 +104,7 @@ impl Gpu {
         }
 
         let kernel_src = format!(
-            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n#define RECOVERY_PBKDF2_SCALAR_UT {}\n#define RECOVERY_PBKDF2_T_SHARED {}\n#define RECOVERY_PBKDF2_STATE_SHARED {}\n{}",
+            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n#define RECOVERY_PBKDF2_SCALAR_UT {}\n#define RECOVERY_PBKDF2_T_SHARED {}\n#define RECOVERY_PBKDF2_STATE_SHARED {}\n#define RECOVERY_SHA512_HALF_SHARED_SCHEDULE {}\n{}",
             lb_min_blocks,
             if noinline_sha512_words { 1 } else { 0 },
             if noinline_fixed64_hmac { 1 } else { 0 },
@@ -110,6 +112,7 @@ impl Gpu {
             if pbkdf2_scalar_ut { 1 } else { 0 },
             if pbkdf2_t_shared { 1 } else { 0 },
             if pbkdf2_state_shared { 1 } else { 0 },
+            if sha512_half_shared_schedule { 1 } else { 0 },
             KERNEL_SRC
         );
         let ptx = compile_ptx_with_opts(&kernel_src, opts)
