@@ -497,6 +497,10 @@ fn run_self_test_cli() {
         }
     };
     println!("Device: {}", gpu.device_name());
+    match gpu.kernel_resource_summary() {
+        Ok(summary) => println!("Kernel resources: {summary}"),
+        Err(e) => eprintln!("Kernel resource query warning: {e}"),
+    }
     match gpu.self_test() {
         Ok(()) => println!("GPU self-test: PASS (3/3 BIP84 reference vectors)"),
         Err(e) => {
@@ -515,6 +519,10 @@ fn run_bench() {
         }
     };
     println!("Device: {}", gpu.device_name());
+    match gpu.kernel_resource_summary() {
+        Ok(summary) => println!("Kernel resources: {summary}"),
+        Err(e) => eprintln!("Kernel resource query warning: {e}"),
+    }
     println!(
         "Bench config: block={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}  noinline_pbkdf2={}",
         std::env::var("SEEDPHRASE_BLOCK").unwrap_or_else(|_| "256(default)".to_string()),
