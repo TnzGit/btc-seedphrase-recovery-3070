@@ -493,6 +493,13 @@ fn run_bench() {
         }
     };
     println!("Device: {}", gpu.device_name());
+    println!(
+        "Bench config: block={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}",
+        std::env::var("SEEDPHRASE_BLOCK").unwrap_or_else(|_| "256(default)".to_string()),
+        std::env::var("SEEDPHRASE_LB_MIN_BLOCKS").unwrap_or_else(|_| "2(default)".to_string()),
+        std::env::var("SEEDPHRASE_NOINLINE_SHA512_WORDS").unwrap_or_else(|_| "0(default)".to_string()),
+        std::env::var("SEEDPHRASE_NOINLINE_FIXED64_HMAC").unwrap_or_else(|_| "0(default)".to_string()),
+    );
     let wordlist = Language::English.word_list();
     let abandon_idx = wordlist.iter().position(|w| *w == "abandon").unwrap() as u16;
     let mut known = [0u16; 24];
