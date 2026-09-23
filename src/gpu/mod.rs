@@ -14,6 +14,7 @@ pub struct Gpu {
     enum_kernel: CudaFunction,
     d_wordlist: CudaSlice<u8>,
     d_g_table: CudaSlice<u8>,
+    launch_max_threads: u32,
 }
 
 /* Precompute 64 windows x 15 multiples of G for windowed scalar multiplication.
@@ -52,18 +53,32 @@ impl Gpu {
             ..Default::default()
         };
 
-        // Production default is __launch_bounds__(256, 2). Expose only the min-blocks
-        // term as an explicit experiment knob so local benchmarking does not need to
-        // patch kernel.cu in-place. Invalid values fail loudly rather than silently
-        // changing the generated code.
+        // R3 lab can vary both launch-bounds terms. R2 production remains 256,2.
+        // This exposes intermediate occupancy/register points such as (128,3).
+        let launch_max_threads: u32 = match std::env::var("SEEDPHRASE_LB_MAX_THREADS") {
+            Ok(raw) => {
+                let v: u32 = raw
+                    .parse()
+                    .map_err(|_| format!("invalid SEEDPHRASE_LB_MAX_THREADS={raw:?}: expected 64, 128, or 256"))?;
+                if !matches!(v, 64 | 128 | 256) {
+                    return Err(format!(
+                        "invalid SEEDPHRASE_LB_MAX_THREADS={v}: expected 64, 128, or 256"
+                    ));
+                }
+                v
+            }
+            Err(std::env::VarError::NotPresent) => 256,
+            Err(e) => return Err(format!("read SEEDPHRASE_LB_MAX_THREADS: {e}")),
+        };
+
         let lb_min_blocks = match std::env::var("SEEDPHRASE_LB_MIN_BLOCKS") {
             Ok(raw) => {
                 let v: u32 = raw
                     .parse()
-                    .map_err(|_| format!("invalid SEEDPHRASE_LB_MIN_BLOCKS={raw:?}: expected integer 1..=4"))?;
-                if !(1..=4).contains(&v) {
+                    .map_err(|_| format!("invalid SEEDPHRASE_LB_MIN_BLOCKS={raw:?}: expected integer 1..=8"))?;
+                if !(1..=8).contains(&v) {
                     return Err(format!(
-                        "invalid SEEDPHRASE_LB_MIN_BLOCKS={v}: expected 1..=4"
+                        "invalid SEEDPHRASE_LB_MIN_BLOCKS={v}: expected 1..=8"
                     ));
                 }
                 v
@@ -127,7 +142,8 @@ impl Gpu {
         }
 
         let kernel_src = format!(
-            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n#define RECOVERY_PBKDF2_SCALAR_UT {}\n#define RECOVERY_PBKDF2_T_SHARED {}\n#define RECOVERY_PBKDF2_STATE_SHARED {}\n#define RECOVERY_SHA512_HALF_SHARED_SCHEDULE {}\n{}",
+            "#define RECOVERY_LAUNCH_MAX_THREADS {}\n#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n#define RECOVERY_PBKDF2_SCALAR_UT {}\n#define RECOVERY_PBKDF2_T_SHARED {}\n#define RECOVERY_PBKDF2_STATE_SHARED {}\n#define RECOVERY_SHA512_HALF_SHARED_SCHEDULE {}\n{}",
+            launch_max_threads,
             lb_min_blocks,
             if noinline_sha512_words { 1 } else { 0 },
             if noinline_fixed64_hmac { 1 } else { 0 },
@@ -174,6 +190,7 @@ impl Gpu {
             enum_kernel,
             d_wordlist,
             d_g_table,
+            launch_max_threads,
         })
     }
 
@@ -256,14 +273,15 @@ impl Gpu {
                 let b: u32 = raw
                     .parse()
                     .map_err(|_| format!("invalid SEEDPHRASE_BLOCK={raw:?}: expected a warp multiple in 32..=256"))?;
-                if !(32..=256).contains(&b) || b % 32 != 0 {
+                if b < 32 || b > self.launch_max_threads || b % 32 != 0 {
                     return Err(format!(
-                        "invalid SEEDPHRASE_BLOCK={b}: expected a warp multiple in 32..=256"
+                        "invalid SEEDPHRASE_BLOCK={b}: expected a warp multiple in 32..={} for the compiled launch bound",
+                        self.launch_max_threads
                     ));
                 }
                 b
             }
-            Err(std::env::VarError::NotPresent) => 256,
+            Err(std::env::VarError::NotPresent) => self.launch_max_threads,
             Err(e) => return Err(format!("read SEEDPHRASE_BLOCK: {e}")),
         };
         let grid: u32 = (chunk_size.div_ceil(block as u64) as u32).max(1);
