@@ -58,3 +58,26 @@ jobs:
             -Xptxas=-v \
             src/gpu/cuda/kernel.cu \
             -o /tmp/kernel-t-shared-${{ matrix.t_shared }}.cubin
+
+
+  shared-state-ptxas:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        state_shared: [0, 1]
+        t_shared: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM86 shared-state/T matrix
+        run: |
+          echo "=== state_shared=${{ matrix.state_shared }} t_shared=${{ matrix.t_shared }} ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_PBKDF2_STATE_SHARED=${{ matrix.state_shared }} \
+            -DRECOVERY_PBKDF2_T_SHARED=${{ matrix.t_shared }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/kernel-state-${{ matrix.state_shared }}-t-${{ matrix.t_shared }}.cubin
