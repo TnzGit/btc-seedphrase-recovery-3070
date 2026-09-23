@@ -89,7 +89,16 @@ __device__ __forceinline__ uint64_t load_be64(const uint8_t* p) {
 /* SHA-512 compression with a 16-word rolling schedule.
  * Keeping W in 16 scalar u64s avoids the original W[80] per-thread local-memory pressure.
  * The round calls are explicitly unrolled so NVRTC can keep the schedule in registers on SM86. */
-__device__ __forceinline__ void sha512_compress_words(
+#ifndef RECOVERY_NOINLINE_SHA512_WORDS
+#define RECOVERY_NOINLINE_SHA512_WORDS 0
+#endif
+#if RECOVERY_NOINLINE_SHA512_WORDS
+#define RECOVERY_SHA512_WORDS_INLINE __noinline__
+#else
+#define RECOVERY_SHA512_WORDS_INLINE __forceinline__
+#endif
+
+__device__ RECOVERY_SHA512_WORDS_INLINE void sha512_compress_words(
     uint64_t state[8],
     uint64_t w0,
     uint64_t w1,
@@ -399,7 +408,16 @@ __device__ __forceinline__ void hmac_sha512_finish(
 /* PBKDF2 hot-path HMAC: message is exactly one 64-byte SHA-512 digest.
  * Keep the digest as eight big-endian u64 words across iterations, avoiding
  * byte buffers, state_to_bytes(), and reparsing on every U2..U2048 round. */
-__device__ __forceinline__ void hmac_sha512_finish_fixed64_words(
+#ifndef RECOVERY_NOINLINE_FIXED64_HMAC
+#define RECOVERY_NOINLINE_FIXED64_HMAC 0
+#endif
+#if RECOVERY_NOINLINE_FIXED64_HMAC
+#define RECOVERY_FIXED64_HMAC_INLINE __noinline__
+#else
+#define RECOVERY_FIXED64_HMAC_INLINE __forceinline__
+#endif
+
+__device__ RECOVERY_FIXED64_HMAC_INLINE void hmac_sha512_finish_fixed64_words(
     const uint64_t ipad_state[8], const uint64_t opad_state[8],
     const uint64_t msg_words[8], uint64_t out_words[8]
 ) {
