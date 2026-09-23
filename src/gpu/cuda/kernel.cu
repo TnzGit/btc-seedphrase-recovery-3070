@@ -1390,9 +1390,9 @@ __device__ __forceinline__ void words_to_bytes(const uint32_t x[8], uint8_t b[32
 
 /* Windowed scalar multiplication k * G using a precomputed table.
  *
- * The host pre-builds a 64*15*64-byte table where entry (i, j-1) holds the affine (X, Y)
+ * The host pre-builds a 64*15*16-word table where entry (i, j-1) holds the affine (X, Y)
  * of (j * 16^i) * G for window index i in [0, 64) and window value j in [1, 15]. Each
- * entry is 64 bytes: 32-byte big-endian X followed by 32-byte big-endian Y.
+ * entry is 16 aligned u32 words: 8 X words followed by 8 Y words.
  *
  * For a 256-bit scalar k, the kernel scans 64 4-bit windows from LSB to MSB and adds
  * the matching precomputed point to a running Jacobian accumulator. This replaces 256
@@ -1400,7 +1400,7 @@ __device__ __forceinline__ void words_to_bytes(const uint32_t x[8], uint8_t b[32
  */
 __device__ void scalar_mul_g_table(
     const uint32_t k[8],
-    const uint8_t* d_g_table,
+    const uint32_t* d_g_table,
     uint32_t x_aff[8],
     uint32_t y_aff[8]
 ) {
@@ -1412,15 +1412,14 @@ __device__ void scalar_mul_g_table(
         uint32_t window = (k[word_idx] >> bit_offset) & 0xFu;
         if (window == 0) continue;
 
-        int entry_offset = (i * 15 + (int)(window - 1)) * 64;
-        uint8_t tx_bytes[32], ty_bytes[32];
-        #pragma unroll
-        for (int b = 0; b < 32; b++) tx_bytes[b] = d_g_table[entry_offset + b];
-        #pragma unroll
-        for (int b = 0; b < 32; b++) ty_bytes[b] = d_g_table[entry_offset + 32 + b];
+        int entry_offset = (i * 15 + (int)(window - 1)) * 16;
+        const uint32_t* entry = d_g_table + entry_offset;
         uint32_t tx[8], ty[8];
-        bytes_to_words(tx_bytes, tx);
-        bytes_to_words(ty_bytes, ty);
+        #pragma unroll
+        for (int w = 0; w < 8; w++) {
+            tx[w] = entry[w];
+            ty[w] = entry[8 + w];
+        }
 
         uint32_t Xn[8], Yn[8], Zn[8];
         point_add_mixed(X, Y, Z, tx, ty, Xn, Yn, Zn);
@@ -1459,7 +1458,7 @@ __device__ __forceinline__ void words_to_bytes(const uint32_t x[8], uint8_t b[32
  * index >= 0x80000000 => hardened (uses priv); else => non-hardened (uses pubkey).
  * ========================================================================= */
 
-__device__ void bip32_ckd_table(uint8_t priv[32], uint8_t chain[32], uint32_t index, const uint8_t* d_g_table) {
+__device__ void bip32_ckd_table(uint8_t priv[32], uint8_t chain[32], uint32_t index, const uint32_t* d_g_table) {
     uint8_t msg[37];
     if (index & 0x80000000u) {
         msg[0] = 0x00;
@@ -1541,7 +1540,7 @@ extern "C" __global__ void recovery_enumerate(
     int path_len,
     const uint8_t* __restrict__ target_hash160,
     const uint8_t* __restrict__ d_wordlist,        /* 2048 * 12 bytes */
-    const uint8_t* __restrict__ d_g_table,         /* 64 * 15 * 64 bytes precomputed G multiples */
+    const uint32_t* __restrict__ d_g_table,         /* 64 * 15 * 16 u32 precomputed G multiples */
     long long* __restrict__ d_match_idx            /* output: -1 or absolute cand index */
 ) {
     /* The packed BIP39 table is only 24 KiB and is read once per candidate before
