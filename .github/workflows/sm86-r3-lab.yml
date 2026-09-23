@@ -81,3 +81,24 @@ jobs:
             -Xptxas=-v \
             src/gpu/cuda/kernel.cu \
             -o /tmp/kernel-state-${{ matrix.state_shared }}-t-${{ matrix.t_shared }}.cubin
+
+
+  half-shared-schedule-ptxas:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        half_shared: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM86 half-shared SHA512 schedule
+        run: |
+          echo "=== half_shared_schedule=${{ matrix.half_shared }} ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_SHA512_HALF_SHARED_SCHEDULE=${{ matrix.half_shared }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/kernel-half-shared-${{ matrix.half_shared }}.cubin
