@@ -502,13 +502,41 @@ fn run_bench() {
     let offset: u64 = 1u64 << 28;
     let chunk: u64 = 1u64 << 22;
     /* Time chunks back-to-back with NO warm-up - the cold first chunk reveals GPU clock
-     * ramp-up plus first-launch JIT cost. Subsequent chunks are steady state. */
+     * ramp-up plus first-launch JIT cost. Subsequent chunks are steady state.
+     *
+     * The enumeration result MUST NOT be discarded: a failed kernel launch returns Err, and
+     * silently ignoring it makes a broken configuration look like an impossibly fast one
+     * (a zero-second chunk printed as tens of thousands of M c/s). Abort instead, and never
+     * divide by a zero elapsed time. */
+    let mut total_secs = 0.0f64;
+    let mut measured = 0u32;
     for i in 0..5 {
         let start = std::time::Instant::now();
-        let _ = gpu.run_enumeration(&known, 12, 4, &missing, true, offset, chunk, salt, &path, &target);
+        match gpu.run_enumeration(&known, 12, 4, &missing, true, offset, chunk, salt, &path, &target) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("chunk #{i} FAILED: {e}");
+                eprintln!("benchmark aborted - refusing to report a rate for a kernel that did not run.");
+                std::process::exit(1);
+            }
+        }
         let elapsed = start.elapsed().as_secs_f64();
-        let rate = chunk as f64 / elapsed;
-        println!("chunk #{}  elapsed = {:.3}s  rate = {:.2} M c/s", i, elapsed, rate / 1_000_000.0);
+        if elapsed <= 0.0 {
+            eprintln!("chunk #{i} reported a non-positive elapsed time ({elapsed}); aborting.");
+            std::process::exit(1);
+        }
+        total_secs += elapsed;
+        measured += 1;
+        println!("chunk #{}  elapsed = {:.3}s  rate = {:.2} M c/s", i, elapsed, chunk as f64 / elapsed / 1_000_000.0);
+    }
+    if measured > 0 {
+        let candidates = chunk * measured as u64;
+        println!(
+            "total {} candidates in {:.3}s  weighted = {:.0} c/s",
+            candidates,
+            total_secs,
+            candidates as f64 / total_secs
+        );
     }
 }
 
