@@ -1,0 +1,39 @@
+name: SM86 168-reg shared follow-up
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-geometry-static
+  workflow_dispatch:
+
+jobs:
+  combo:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: g168
+            t_shared: 0
+            half_shared: 0
+          - name: g168-tshared
+            t_shared: 1
+            half_shared: 0
+          - name: g168-halfshared
+            t_shared: 0
+            half_shared: 1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile 128x3 shared follow-up
+        run: |
+          echo "=== ${{ matrix.name }} ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MAX_THREADS=128 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=3 \
+            -DRECOVERY_PBKDF2_T_SHARED=${{ matrix.t_shared }} \
+            -DRECOVERY_SHA512_HALF_SHARED_SCHEDULE=${{ matrix.half_shared }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/${{ matrix.name }}.cubin
