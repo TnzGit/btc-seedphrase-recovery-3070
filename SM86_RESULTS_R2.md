@@ -328,3 +328,18 @@ live-range 实验本身仍未做过硬件吞吐测试，可作为候选之一。
 - 上一轮找回物：`results/r1-recovered/`（commit `2fdb944`）
 
 未提交任何多 GB profiler/scratch 数据；未提交任何真实 seed、助记词或私钥。
+
+
+## 13. Review 后追加修复
+
+基于本报告中发现的唯一错误配置，review 后已在 R2 分支追加防护：
+
+- Rust 在 NVRTC 编译前拒绝：
+  - `SEEDPHRASE_NOINLINE_SHA512_WORDS=1`
+  - `SEEDPHRASE_NOINLINE_FIXED64_HMAC=0`
+  - `SEEDPHRASE_NOINLINE_PBKDF2=1`
+- CUDA 源码同时包含预处理器硬错误，防止绕过 CLI 直接编译该错误组合。
+- 增加 CPU-only 回归测试，枚举全部 8 种 flag 组合，确认只有上述已知错误组合被拒绝。
+- CI 已通过该回归测试与 `cargo check`。
+
+这些提交只增加安全防护，不改变 R2 默认生产配置（0/0/0）或其 CUDA 热路径。
