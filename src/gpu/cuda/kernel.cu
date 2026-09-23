@@ -506,6 +506,347 @@ __device__ __forceinline__ void hmac_sha512_finish_fixed64_shared_state(
     for (int i = 0; i < 8; i++) out_words[i] = st[i];
 }
 
+/* R3 partial-schedule experiment for the fixed 64-byte PBKDF2 HMAC path.
+ * W0..W7 (older half) live in transposed shared memory; W8..W15 (recent half)
+ * live in eight u64 registers. After round 15, each new word needs:
+ *   i-2, i-7   -> recent register half
+ *   i-15, i-16 -> shared older half
+ * The oldest recent register is then moved to shared and replaced by W[i].
+ * This halves rolling-schedule register state without a dynamic W[] array. */
+__device__ __forceinline__ void sha512_compress_fixed64_halfshared(
+    uint64_t state[8],
+    uint64_t m0, uint64_t m1, uint64_t m2, uint64_t m3,
+    uint64_t m4, uint64_t m5, uint64_t m6, uint64_t m7,
+    uint64_t* w_shared,
+    int w_stride,
+    int tid
+) {
+    w_shared[0 * w_stride + tid] = m0;
+    w_shared[1 * w_stride + tid] = m1;
+    w_shared[2 * w_stride + tid] = m2;
+    w_shared[3 * w_stride + tid] = m3;
+    w_shared[4 * w_stride + tid] = m4;
+    w_shared[5 * w_stride + tid] = m5;
+    w_shared[6 * w_stride + tid] = m6;
+    w_shared[7 * w_stride + tid] = m7;
+
+    /* Fixed padding words W8..W15 for a 64-byte HMAC message after the
+     * already-compressed 128-byte ipad/opad block. */
+    uint64_t r0 = 0x8000000000000000ULL;
+    uint64_t r1 = 0ULL, r2 = 0ULL, r3 = 0ULL;
+    uint64_t r4 = 0ULL, r5 = 0ULL, r6 = 0ULL, r7 = 1536ULL;
+
+    uint64_t a = state[0], b = state[1], c = state[2], d = state[3];
+    uint64_t e = state[4], f = state[5], g = state[6], h = state[7];
+    uint64_t nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w_shared[0 * w_stride + tid], K512[0]);
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w_shared[1 * w_stride + tid], K512[1]);
+    SHA512_ROUND(g, h, a, b, c, d, e, f, w_shared[2 * w_stride + tid], K512[2]);
+    SHA512_ROUND(f, g, h, a, b, c, d, e, w_shared[3 * w_stride + tid], K512[3]);
+    SHA512_ROUND(e, f, g, h, a, b, c, d, w_shared[4 * w_stride + tid], K512[4]);
+    SHA512_ROUND(d, e, f, g, h, a, b, c, w_shared[5 * w_stride + tid], K512[5]);
+    SHA512_ROUND(c, d, e, f, g, h, a, b, w_shared[6 * w_stride + tid], K512[6]);
+    SHA512_ROUND(b, c, d, e, f, g, h, a, w_shared[7 * w_stride + tid], K512[7]);
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[8]);
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[9]);
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[10]);
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[11]);
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[12]);
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[13]);
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[14]);
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[15]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[16]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[17]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[18]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[19]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[20]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[21]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[22]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[23]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[24]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[25]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[26]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[27]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[28]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[29]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[30]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[31]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[32]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[33]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[34]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[35]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[36]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[37]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[38]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[39]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[40]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[41]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[42]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[43]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[44]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[45]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[46]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[47]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[48]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[49]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[50]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[51]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[52]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[53]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[54]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[55]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[56]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[57]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[58]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[59]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[60]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[61]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[62]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[63]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[64]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[65]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[66]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[67]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[68]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[69]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[70]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[71]);
+    nw = s1_64(r6) + r1 + s0_64(w_shared[1 * w_stride + tid]) + w_shared[0 * w_stride + tid];
+    w_shared[0 * w_stride + tid] = r0;
+    r0 = nw;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, r0, K512[72]);
+    nw = s1_64(r7) + r2 + s0_64(w_shared[2 * w_stride + tid]) + w_shared[1 * w_stride + tid];
+    w_shared[1 * w_stride + tid] = r1;
+    r1 = nw;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, r1, K512[73]);
+    nw = s1_64(r0) + r3 + s0_64(w_shared[3 * w_stride + tid]) + w_shared[2 * w_stride + tid];
+    w_shared[2 * w_stride + tid] = r2;
+    r2 = nw;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, r2, K512[74]);
+    nw = s1_64(r1) + r4 + s0_64(w_shared[4 * w_stride + tid]) + w_shared[3 * w_stride + tid];
+    w_shared[3 * w_stride + tid] = r3;
+    r3 = nw;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, r3, K512[75]);
+    nw = s1_64(r2) + r5 + s0_64(w_shared[5 * w_stride + tid]) + w_shared[4 * w_stride + tid];
+    w_shared[4 * w_stride + tid] = r4;
+    r4 = nw;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, r4, K512[76]);
+    nw = s1_64(r3) + r6 + s0_64(w_shared[6 * w_stride + tid]) + w_shared[5 * w_stride + tid];
+    w_shared[5 * w_stride + tid] = r5;
+    r5 = nw;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, r5, K512[77]);
+    nw = s1_64(r4) + r7 + s0_64(w_shared[7 * w_stride + tid]) + w_shared[6 * w_stride + tid];
+    w_shared[6 * w_stride + tid] = r6;
+    r6 = nw;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, r6, K512[78]);
+    nw = s1_64(r5) + r0 + s0_64(w_shared[0 * w_stride + tid]) + w_shared[7 * w_stride + tid];
+    w_shared[7 * w_stride + tid] = r7;
+    r7 = nw;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, r7, K512[79]);
+    state[0] += a; state[1] += b; state[2] += c; state[3] += d;
+    state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+}
+
+__device__ __forceinline__ void hmac_sha512_finish_fixed64_halfshared(
+    const uint64_t ipad_state[8],
+    const uint64_t opad_state[8],
+    const uint64_t msg_words[8],
+    uint64_t out_words[8],
+    uint64_t* w_shared,
+    int w_stride,
+    int tid
+) {
+    uint64_t m0=msg_words[0], m1=msg_words[1], m2=msg_words[2], m3=msg_words[3];
+    uint64_t m4=msg_words[4], m5=msg_words[5], m6=msg_words[6], m7=msg_words[7];
+    uint64_t st[8];
+    #pragma unroll
+    for (int i=0;i<8;i++) st[i]=ipad_state[i];
+
+    sha512_compress_fixed64_halfshared(
+        st, m0,m1,m2,m3,m4,m5,m6,m7, w_shared,w_stride,tid
+    );
+
+    m0=st[0]; m1=st[1]; m2=st[2]; m3=st[3];
+    m4=st[4]; m5=st[5]; m6=st[6]; m7=st[7];
+    #pragma unroll
+    for (int i=0;i<8;i++) st[i]=opad_state[i];
+
+    sha512_compress_fixed64_halfshared(
+        st, m0,m1,m2,m3,m4,m5,m6,m7, w_shared,w_stride,tid
+    );
+
+    #pragma unroll
+    for (int i=0;i<8;i++) out_words[i]=st[i];
+}
+
 /* HMAC-SHA512 in one shot (recomputes ipad/opad per call). Used for BIP32 master derivation
  * (key = "Bitcoin seed", different per call would defeat caching). */
 __device__ void hmac_sha512(
@@ -531,6 +872,9 @@ __device__ void hmac_sha512(
 #endif
 #ifndef RECOVERY_PBKDF2_STATE_SHARED
 #define RECOVERY_PBKDF2_STATE_SHARED 0
+#endif
+#ifndef RECOVERY_SHA512_HALF_SHARED_SCHEDULE
+#define RECOVERY_SHA512_HALF_SHARED_SCHEDULE 0
 #endif
 
 #if RECOVERY_NOINLINE_SHA512_WORDS && RECOVERY_NOINLINE_PBKDF2 && !RECOVERY_NOINLINE_FIXED64_HMAC
@@ -697,6 +1041,41 @@ __device__ __forceinline__ void pbkdf2_hmac_sha512_block_state_shared(
 
     sha512_state_to_bytes(T, out);
 #endif
+}
+
+/* R3 experiment: reference PBKDF2 state layout, but the fixed64 SHA-512
+ * hot path uses the half-register/half-shared rolling schedule above. */
+__device__ __forceinline__ void pbkdf2_hmac_sha512_block_halfshared_schedule(
+    const uint8_t* pwd, int pwd_len,
+    const uint8_t* salt, int salt_len,
+    int iterations,
+    uint8_t out[64],
+    uint64_t* w_shared,
+    int w_stride,
+    int tid
+) {
+    uint64_t ipad_state[8], opad_state[8];
+    hmac_sha512_precompute(pwd, pwd_len, ipad_state, opad_state);
+
+    uint8_t u1_bytes[64];
+    hmac_sha512_finish(ipad_state, opad_state, salt, salt_len, u1_bytes);
+
+    uint64_t U[8], T[8];
+    #pragma unroll
+    for (int i=0;i<8;i++) {
+        U[i]=load_be64(u1_bytes+i*8);
+        T[i]=U[i];
+    }
+
+    for (int it=1;it<iterations;it++) {
+        hmac_sha512_finish_fixed64_halfshared(
+            ipad_state, opad_state, U, U, w_shared, w_stride, tid
+        );
+        #pragma unroll
+        for (int i=0;i<8;i++) T[i]^=U[i];
+    }
+
+    sha512_state_to_bytes(T,out);
 }
 
 /* =========================================================================
@@ -1787,6 +2166,11 @@ extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVE
     __shared__ uint64_t s_pbkdf2_state[16][RECOVERY_LAUNCH_MAX_THREADS];
 #endif
 
+#if RECOVERY_SHA512_HALF_SHARED_SCHEDULE
+    /* 8 x 256 x u64 = 16 KiB/block scratch for the older half of the W window. */
+    __shared__ uint64_t s_sha512_wold[8][RECOVERY_LAUNCH_MAX_THREADS];
+#endif
+
     /* The packed BIP39 table is only 24 KiB and is read once per candidate before
      * the long PBKDF2 loop. Keeping a 24 KiB copy per block caps SM86 residency, so
      * read it directly from global memory and let L1/L2 cache it. */
@@ -1886,7 +2270,12 @@ extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVE
 
     /* Run the pipeline. */
     uint8_t seed[64];
-#if RECOVERY_PBKDF2_STATE_SHARED
+#if RECOVERY_SHA512_HALF_SHARED_SCHEDULE
+    pbkdf2_hmac_sha512_block_halfshared_schedule(
+        mnemonic, mnemonic_len, salt, salt_len, iterations, seed,
+        &s_sha512_wold[0][0], RECOVERY_LAUNCH_MAX_THREADS, (int)threadIdx.x
+    );
+#elif RECOVERY_PBKDF2_STATE_SHARED
     pbkdf2_hmac_sha512_block_state_shared(
         mnemonic, mnemonic_len, salt, salt_len, iterations, seed,
         &s_pbkdf2_state[0][0], RECOVERY_LAUNCH_MAX_THREADS, (int)threadIdx.x,
