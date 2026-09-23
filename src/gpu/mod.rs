@@ -86,6 +86,18 @@ impl Gpu {
         let noinline_fixed64_hmac = parse_probe_flag("SEEDPHRASE_NOINLINE_FIXED64_HMAC")?;
         let noinline_pbkdf2 = parse_probe_flag("SEEDPHRASE_NOINLINE_PBKDF2")?;
 
+        // Hardware validation on the reference RTX 3070 found exactly one probe
+        // combination that reproducibly produces wrong BIP84 results under NVRTC:
+        // SHA words noinline + PBKDF2 noinline + fixed64 HMAC inline.
+        // Reject it before compiling so a throughput-only experiment can never promote
+        // a silently incorrect kernel.
+        if noinline_sha512_words && noinline_pbkdf2 && !noinline_fixed64_hmac {
+            return Err(
+                "unsafe SM86 probe combination disabled: SEEDPHRASE_NOINLINE_SHA512_WORDS=1 + SEEDPHRASE_NOINLINE_PBKDF2=1 requires SEEDPHRASE_NOINLINE_FIXED64_HMAC=1; the hmac=0 combination failed the 3-vector BIP84 GPU self-test reproducibly"
+                    .to_string(),
+            );
+        }
+
         let kernel_src = format!(
             "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n{}",
             lb_min_blocks,
