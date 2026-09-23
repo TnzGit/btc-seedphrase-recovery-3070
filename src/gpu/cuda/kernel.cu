@@ -464,6 +464,10 @@ __device__ void hmac_sha512(
 #ifndef RECOVERY_NOINLINE_PBKDF2
 #define RECOVERY_NOINLINE_PBKDF2 0
 #endif
+
+#if RECOVERY_NOINLINE_SHA512_WORDS && RECOVERY_NOINLINE_PBKDF2 && !RECOVERY_NOINLINE_FIXED64_HMAC
+#error "Disabled: sha512_words noinline + PBKDF2 noinline + fixed64 HMAC inline failed the RTX 3070 BIP84 correctness gate"
+#endif
 #if RECOVERY_NOINLINE_PBKDF2
 #define RECOVERY_PBKDF2_INLINE __noinline__
 #else
