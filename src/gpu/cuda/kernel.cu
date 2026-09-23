@@ -73,29 +73,210 @@ __device__ __constant__ uint64_t H0_512[8] = {
 #define s0_64(x) (ROTR64(x, 1) ^ ROTR64(x, 8) ^ ((x) >> 7))
 #define s1_64(x) (ROTR64(x,19) ^ ROTR64(x,61) ^ ((x) >> 6))
 
-__device__ __forceinline__ void sha512_compress(uint64_t state[8], const uint8_t block[128]) {
-    uint64_t W[80];
-    #pragma unroll
-    for (int i = 0; i < 16; i++) {
-        W[i] =
-            ((uint64_t)block[i*8 + 0] << 56) | ((uint64_t)block[i*8 + 1] << 48) |
-            ((uint64_t)block[i*8 + 2] << 40) | ((uint64_t)block[i*8 + 3] << 32) |
-            ((uint64_t)block[i*8 + 4] << 24) | ((uint64_t)block[i*8 + 5] << 16) |
-            ((uint64_t)block[i*8 + 6] <<  8) | ((uint64_t)block[i*8 + 7]);
-    }
-    for (int i = 16; i < 80; i++) {
-        W[i] = s1_64(W[i-2]) + W[i-7] + s0_64(W[i-15]) + W[i-16];
-    }
+#define SHA512_ROUND(a,b,c,d,e,f,g,h,w,k) do { \
+    uint64_t _t1 = (h) + S1_64(e) + Ch64((e),(f),(g)) + (k) + (w); \
+    uint64_t _t2 = S0_64(a) + Maj64((a),(b),(c)); \
+    (d) += _t1; \
+    (h) = _t1 + _t2; \
+} while (0)
+
+__device__ __forceinline__ uint64_t load_be64(const uint8_t* p) {
+    return ((uint64_t)p[0] << 56) | ((uint64_t)p[1] << 48) |
+           ((uint64_t)p[2] << 40) | ((uint64_t)p[3] << 32) |
+           ((uint64_t)p[4] << 24) | ((uint64_t)p[5] << 16) |
+           ((uint64_t)p[6] <<  8) | ((uint64_t)p[7]);
+}
+
+/* SHA-512 compression with a 16-word rolling schedule.
+ * Keeping W in 16 scalar u64s avoids the original W[80] per-thread local-memory pressure.
+ * The round calls are explicitly unrolled so NVRTC can keep the schedule in registers on SM86. */
+__device__ __forceinline__ void sha512_compress_words(
+    uint64_t state[8],
+    uint64_t w0,
+    uint64_t w1,
+    uint64_t w2,
+    uint64_t w3,
+    uint64_t w4,
+    uint64_t w5,
+    uint64_t w6,
+    uint64_t w7,
+    uint64_t w8,
+    uint64_t w9,
+    uint64_t wa,
+    uint64_t wb,
+    uint64_t wc,
+    uint64_t wd,
+    uint64_t we,
+    uint64_t wf
+) {
     uint64_t a = state[0], b = state[1], c = state[2], d = state[3];
     uint64_t e = state[4], f = state[5], g = state[6], h = state[7];
-    for (int i = 0; i < 80; i++) {
-        uint64_t T1 = h + S1_64(e) + Ch64(e, f, g) + K512[i] + W[i];
-        uint64_t T2 = S0_64(a) + Maj64(a, b, c);
-        h = g; g = f; f = e; e = d + T1;
-        d = c; c = b; b = a; a = T1 + T2;
-    }
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w0, K512[0]);
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w1, K512[1]);
+    SHA512_ROUND(g, h, a, b, c, d, e, f, w2, K512[2]);
+    SHA512_ROUND(f, g, h, a, b, c, d, e, w3, K512[3]);
+    SHA512_ROUND(e, f, g, h, a, b, c, d, w4, K512[4]);
+    SHA512_ROUND(d, e, f, g, h, a, b, c, w5, K512[5]);
+    SHA512_ROUND(c, d, e, f, g, h, a, b, w6, K512[6]);
+    SHA512_ROUND(b, c, d, e, f, g, h, a, w7, K512[7]);
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w8, K512[8]);
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w9, K512[9]);
+    SHA512_ROUND(g, h, a, b, c, d, e, f, wa, K512[10]);
+    SHA512_ROUND(f, g, h, a, b, c, d, e, wb, K512[11]);
+    SHA512_ROUND(e, f, g, h, a, b, c, d, wc, K512[12]);
+    SHA512_ROUND(d, e, f, g, h, a, b, c, wd, K512[13]);
+    SHA512_ROUND(c, d, e, f, g, h, a, b, we, K512[14]);
+    SHA512_ROUND(b, c, d, e, f, g, h, a, wf, K512[15]);
+    w0 = s1_64(we) + w9 + s0_64(w1) + w0;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w0, K512[16]);
+    w1 = s1_64(wf) + wa + s0_64(w2) + w1;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w1, K512[17]);
+    w2 = s1_64(w0) + wb + s0_64(w3) + w2;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, w2, K512[18]);
+    w3 = s1_64(w1) + wc + s0_64(w4) + w3;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, w3, K512[19]);
+    w4 = s1_64(w2) + wd + s0_64(w5) + w4;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, w4, K512[20]);
+    w5 = s1_64(w3) + we + s0_64(w6) + w5;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, w5, K512[21]);
+    w6 = s1_64(w4) + wf + s0_64(w7) + w6;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, w6, K512[22]);
+    w7 = s1_64(w5) + w0 + s0_64(w8) + w7;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, w7, K512[23]);
+    w8 = s1_64(w6) + w1 + s0_64(w9) + w8;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w8, K512[24]);
+    w9 = s1_64(w7) + w2 + s0_64(wa) + w9;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w9, K512[25]);
+    wa = s1_64(w8) + w3 + s0_64(wb) + wa;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, wa, K512[26]);
+    wb = s1_64(w9) + w4 + s0_64(wc) + wb;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, wb, K512[27]);
+    wc = s1_64(wa) + w5 + s0_64(wd) + wc;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, wc, K512[28]);
+    wd = s1_64(wb) + w6 + s0_64(we) + wd;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, wd, K512[29]);
+    we = s1_64(wc) + w7 + s0_64(wf) + we;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, we, K512[30]);
+    wf = s1_64(wd) + w8 + s0_64(w0) + wf;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, wf, K512[31]);
+    w0 = s1_64(we) + w9 + s0_64(w1) + w0;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w0, K512[32]);
+    w1 = s1_64(wf) + wa + s0_64(w2) + w1;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w1, K512[33]);
+    w2 = s1_64(w0) + wb + s0_64(w3) + w2;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, w2, K512[34]);
+    w3 = s1_64(w1) + wc + s0_64(w4) + w3;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, w3, K512[35]);
+    w4 = s1_64(w2) + wd + s0_64(w5) + w4;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, w4, K512[36]);
+    w5 = s1_64(w3) + we + s0_64(w6) + w5;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, w5, K512[37]);
+    w6 = s1_64(w4) + wf + s0_64(w7) + w6;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, w6, K512[38]);
+    w7 = s1_64(w5) + w0 + s0_64(w8) + w7;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, w7, K512[39]);
+    w8 = s1_64(w6) + w1 + s0_64(w9) + w8;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w8, K512[40]);
+    w9 = s1_64(w7) + w2 + s0_64(wa) + w9;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w9, K512[41]);
+    wa = s1_64(w8) + w3 + s0_64(wb) + wa;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, wa, K512[42]);
+    wb = s1_64(w9) + w4 + s0_64(wc) + wb;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, wb, K512[43]);
+    wc = s1_64(wa) + w5 + s0_64(wd) + wc;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, wc, K512[44]);
+    wd = s1_64(wb) + w6 + s0_64(we) + wd;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, wd, K512[45]);
+    we = s1_64(wc) + w7 + s0_64(wf) + we;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, we, K512[46]);
+    wf = s1_64(wd) + w8 + s0_64(w0) + wf;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, wf, K512[47]);
+    w0 = s1_64(we) + w9 + s0_64(w1) + w0;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w0, K512[48]);
+    w1 = s1_64(wf) + wa + s0_64(w2) + w1;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w1, K512[49]);
+    w2 = s1_64(w0) + wb + s0_64(w3) + w2;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, w2, K512[50]);
+    w3 = s1_64(w1) + wc + s0_64(w4) + w3;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, w3, K512[51]);
+    w4 = s1_64(w2) + wd + s0_64(w5) + w4;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, w4, K512[52]);
+    w5 = s1_64(w3) + we + s0_64(w6) + w5;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, w5, K512[53]);
+    w6 = s1_64(w4) + wf + s0_64(w7) + w6;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, w6, K512[54]);
+    w7 = s1_64(w5) + w0 + s0_64(w8) + w7;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, w7, K512[55]);
+    w8 = s1_64(w6) + w1 + s0_64(w9) + w8;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w8, K512[56]);
+    w9 = s1_64(w7) + w2 + s0_64(wa) + w9;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w9, K512[57]);
+    wa = s1_64(w8) + w3 + s0_64(wb) + wa;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, wa, K512[58]);
+    wb = s1_64(w9) + w4 + s0_64(wc) + wb;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, wb, K512[59]);
+    wc = s1_64(wa) + w5 + s0_64(wd) + wc;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, wc, K512[60]);
+    wd = s1_64(wb) + w6 + s0_64(we) + wd;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, wd, K512[61]);
+    we = s1_64(wc) + w7 + s0_64(wf) + we;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, we, K512[62]);
+    wf = s1_64(wd) + w8 + s0_64(w0) + wf;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, wf, K512[63]);
+    w0 = s1_64(we) + w9 + s0_64(w1) + w0;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w0, K512[64]);
+    w1 = s1_64(wf) + wa + s0_64(w2) + w1;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w1, K512[65]);
+    w2 = s1_64(w0) + wb + s0_64(w3) + w2;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, w2, K512[66]);
+    w3 = s1_64(w1) + wc + s0_64(w4) + w3;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, w3, K512[67]);
+    w4 = s1_64(w2) + wd + s0_64(w5) + w4;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, w4, K512[68]);
+    w5 = s1_64(w3) + we + s0_64(w6) + w5;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, w5, K512[69]);
+    w6 = s1_64(w4) + wf + s0_64(w7) + w6;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, w6, K512[70]);
+    w7 = s1_64(w5) + w0 + s0_64(w8) + w7;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, w7, K512[71]);
+    w8 = s1_64(w6) + w1 + s0_64(w9) + w8;
+    SHA512_ROUND(a, b, c, d, e, f, g, h, w8, K512[72]);
+    w9 = s1_64(w7) + w2 + s0_64(wa) + w9;
+    SHA512_ROUND(h, a, b, c, d, e, f, g, w9, K512[73]);
+    wa = s1_64(w8) + w3 + s0_64(wb) + wa;
+    SHA512_ROUND(g, h, a, b, c, d, e, f, wa, K512[74]);
+    wb = s1_64(w9) + w4 + s0_64(wc) + wb;
+    SHA512_ROUND(f, g, h, a, b, c, d, e, wb, K512[75]);
+    wc = s1_64(wa) + w5 + s0_64(wd) + wc;
+    SHA512_ROUND(e, f, g, h, a, b, c, d, wc, K512[76]);
+    wd = s1_64(wb) + w6 + s0_64(we) + wd;
+    SHA512_ROUND(d, e, f, g, h, a, b, c, wd, K512[77]);
+    we = s1_64(wc) + w7 + s0_64(wf) + we;
+    SHA512_ROUND(c, d, e, f, g, h, a, b, we, K512[78]);
+    wf = s1_64(wd) + w8 + s0_64(w0) + wf;
+    SHA512_ROUND(b, c, d, e, f, g, h, a, wf, K512[79]);
     state[0] += a; state[1] += b; state[2] += c; state[3] += d;
     state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+}
+
+__device__ __forceinline__ void sha512_compress(uint64_t state[8], const uint8_t block[128]) {
+    uint64_t w0 = load_be64(block + 0);
+    uint64_t w1 = load_be64(block + 8);
+    uint64_t w2 = load_be64(block + 16);
+    uint64_t w3 = load_be64(block + 24);
+    uint64_t w4 = load_be64(block + 32);
+    uint64_t w5 = load_be64(block + 40);
+    uint64_t w6 = load_be64(block + 48);
+    uint64_t w7 = load_be64(block + 56);
+    uint64_t w8 = load_be64(block + 64);
+    uint64_t w9 = load_be64(block + 72);
+    uint64_t wa = load_be64(block + 80);
+    uint64_t wb = load_be64(block + 88);
+    uint64_t wc = load_be64(block + 96);
+    uint64_t wd = load_be64(block + 104);
+    uint64_t we = load_be64(block + 112);
+    uint64_t wf = load_be64(block + 120);
+    sha512_compress_words(state, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wa, wb, wc, wd, we, wf);
 }
 
 __device__ __forceinline__ void sha512_state_to_bytes(const uint64_t state[8], uint8_t out[64]) {
@@ -215,6 +396,40 @@ __device__ __forceinline__ void hmac_sha512_finish(
     sha512_state_to_bytes(outer, out);
 }
 
+
+/* PBKDF2 hot-path HMAC: message is exactly one 64-byte SHA-512 digest.
+ * Keep the digest as eight big-endian u64 words across iterations, avoiding
+ * byte buffers, state_to_bytes(), and reparsing on every U2..U2048 round. */
+__device__ __forceinline__ void hmac_sha512_finish_fixed64_words(
+    const uint64_t ipad_state[8], const uint64_t opad_state[8],
+    const uint64_t msg_words[8], uint64_t out_words[8]
+) {
+    uint64_t m0 = msg_words[0], m1 = msg_words[1], m2 = msg_words[2], m3 = msg_words[3];
+    uint64_t m4 = msg_words[4], m5 = msg_words[5], m6 = msg_words[6], m7 = msg_words[7];
+    uint64_t st[8];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) st[i] = ipad_state[i];
+
+    /* 128-byte ipad already compressed + 64-byte message = 1536 bits total. */
+    sha512_compress_words(
+        st, m0, m1, m2, m3, m4, m5, m6, m7,
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL
+    );
+
+    m0 = st[0]; m1 = st[1]; m2 = st[2]; m3 = st[3];
+    m4 = st[4]; m5 = st[5]; m6 = st[6]; m7 = st[7];
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) st[i] = opad_state[i];
+    sha512_compress_words(
+        st, m0, m1, m2, m3, m4, m5, m6, m7,
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL
+    );
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) out_words[i] = st[i];
+}
+
 /* HMAC-SHA512 in one shot (recomputes ipad/opad per call). Used for BIP32 master derivation
  * (key = "Bitcoin seed", different per call would defeat caching). */
 __device__ void hmac_sha512(
@@ -238,22 +453,25 @@ __device__ void pbkdf2_hmac_sha512_block(
     uint64_t ipad_state[8], opad_state[8];
     hmac_sha512_precompute(pwd, pwd_len, ipad_state, opad_state);
 
-    uint8_t T[64], U[64];
-    hmac_sha512_finish(ipad_state, opad_state, salt, salt_len, U);
-    #pragma unroll
-    for (int i = 0; i < 64; i++) T[i] = U[i];
+    /* U1 has variable salt length, so use the generic path once. */
+    uint8_t u1_bytes[64];
+    hmac_sha512_finish(ipad_state, opad_state, salt, salt_len, u1_bytes);
 
-    for (int it = 1; it < iterations; it++) {
-        uint8_t prev[64];
-        #pragma unroll
-        for (int i = 0; i < 64; i++) prev[i] = U[i];
-        hmac_sha512_finish(ipad_state, opad_state, prev, 64, U);
-        #pragma unroll
-        for (int i = 0; i < 64; i++) T[i] ^= U[i];
+    uint64_t U[8], T[8];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        U[i] = load_be64(u1_bytes + i * 8);
+        T[i] = U[i];
     }
 
-    #pragma unroll
-    for (int i = 0; i < 64; i++) out[i] = T[i];
+    /* U2..Uiterations are always HMACs of an exact 64-byte digest. */
+    for (int it = 1; it < iterations; it++) {
+        hmac_sha512_finish_fixed64_words(ipad_state, opad_state, U, U);
+        #pragma unroll
+        for (int i = 0; i < 8; i++) T[i] ^= U[i];
+    }
+
+    sha512_state_to_bytes(T, out);
 }
 
 /* =========================================================================
@@ -1326,20 +1544,9 @@ extern "C" __global__ void recovery_enumerate(
     const uint8_t* __restrict__ d_g_table,         /* 64 * 15 * 64 bytes precomputed G multiples */
     long long* __restrict__ d_match_idx            /* output: -1 or absolute cand index */
 ) {
-    /* Load BIP39 wordlist into shared memory once per block. With 32 threads in a warp each
-     * looking up a different 12-byte word entry, global-memory reads would serialize; shared
-     * memory accesses (no bank conflict for byte reads in this access pattern) are ~free. */
-    __shared__ uint8_t s_wordlist[2048 * 12];
-    {
-        int total_bytes = 2048 * 12;
-        int t = threadIdx.x;
-        int bs = blockDim.x;
-        for (int off = t * 4; off < total_bytes; off += bs * 4) {
-            *(uint32_t*)&s_wordlist[off] = *(const uint32_t*)&d_wordlist[off];
-        }
-        __syncthreads();
-    }
-
+    /* The packed BIP39 table is only 24 KiB and is read once per candidate before
+     * the long PBKDF2 loop. Keeping a 24 KiB copy per block caps SM86 residency, so
+     * read it directly from global memory and let L1/L2 cache it. */
     unsigned long long tid_u = (unsigned long long)blockIdx.x * (unsigned long long)blockDim.x + (unsigned long long)threadIdx.x;
     if (tid_u >= chunk_size) return;
     if (*d_match_idx != -1LL) return;
@@ -1422,14 +1629,14 @@ extern "C" __global__ void recovery_enumerate(
         if (calc_cs != actual_cs) return;
     }
 
-    /* Build the mnemonic byte buffer from the shared-memory wordlist. */
+    /* Build the mnemonic byte buffer directly from the cached global wordlist. */
     uint8_t mnemonic[256];
     int cursor = 0;
     for (int i = 0; i < mnemonic_length; i++) {
         uint16_t widx = indices[i];
         int wl_off = (int)widx * 12;
-        int wlen = s_wordlist[wl_off];
-        for (int c = 0; c < wlen; c++) mnemonic[cursor++] = s_wordlist[wl_off + 1 + c];
+        int wlen = d_wordlist[wl_off];
+        for (int c = 0; c < wlen; c++) mnemonic[cursor++] = d_wordlist[wl_off + 1 + c];
         if (i < mnemonic_length - 1) mnemonic[cursor++] = (uint8_t)' ';
     }
     int mnemonic_len = cursor;
