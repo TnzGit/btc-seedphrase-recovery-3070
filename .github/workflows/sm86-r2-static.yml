@@ -70,20 +70,40 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: nvidia/cuda:12.4.1-devel-ubuntu22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        hmac_noinline: [0, 1]
     steps:
       - uses: actions/checkout@v4
-      - name: Compile SHA noinline plus forced PBKDF2 boundary
+      - name: Compile the only legal SHA+PBKDF2 noinline boundary
         run: |
-          echo "=== lb2 sha=1 hmac=${{ matrix.hmac_noinline }} pbkdf2=1 ==="
+          echo "=== lb2 sha=1 hmac=1 pbkdf2=1 ==="
           nvcc -cubin -arch=sm_86 \
             -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
             -DRECOVERY_NOINLINE_SHA512_WORDS=1 \
-            -DRECOVERY_NOINLINE_FIXED64_HMAC=${{ matrix.hmac_noinline }} \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=1 \
             -DRECOVERY_NOINLINE_PBKDF2=1 \
             -Xptxas=-v \
             src/gpu/cuda/kernel.cu \
-            -o /tmp/kernel-pbkdf2-boundary-${{ matrix.hmac_noinline }}.cubin
+            -o /tmp/kernel-pbkdf2-boundary-legal.cubin
+
+  known-bad-cuda-guard:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Known-bad E combination must be rejected by preprocessing
+        run: |
+          set +e
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=1 \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=0 \
+            -DRECOVERY_NOINLINE_PBKDF2=1 \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/should-not-exist.cubin \
+            > /tmp/guard.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/guard.log
+          test "$rc" -ne 0
+          grep -q "failed the RTX 3070 BIP84 correctness gate" /tmp/guard.log
