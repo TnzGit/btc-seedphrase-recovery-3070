@@ -13,17 +13,17 @@ pub struct Gpu {
     stream: Arc<CudaStream>,
     enum_kernel: CudaFunction,
     d_wordlist: CudaSlice<u8>,
-    d_g_table: CudaSlice<u8>,
+    d_g_table: CudaSlice<u32>,
 }
 
 /* Precompute 64 windows x 15 multiples of G for windowed scalar multiplication.
- * Layout: 64 windows, each 15 entries (j = 1..=15), each entry = (X_be 32 bytes, Y_be 32 bytes).
- * Total size = 64 * 15 * 64 = 61440 bytes. Stored in global memory; the GPU loads each
- * entry once per scalar mult (64 ldg-style reads, L2-cached). */
-fn build_g_table_bytes() -> Vec<u8> {
-    use secp256k1::{Secp256k1, SecretKey, PublicKey};
+ * Layout: 64 windows, 15 entries each, 16 aligned u32 per entry (8 X + 8 Y).
+ * Values are converted from serialized big-endian bytes on the host so the GPU avoids
+ * byte gathers and byte-to-word assembly in every scalar-multiplication window. */
+fn build_g_table_words() -> Vec<u32> {
+    use secp256k1::{PublicKey, Secp256k1, SecretKey};
     let secp = Secp256k1::new();
-    let mut table = vec![0u8; 64 * 15 * 64];
+    let mut table = vec![0u32; 64 * 15 * 16];
     for i in 0..64usize {
         for j in 1..=15u32 {
             let mut sk_bytes = [0u8; 32];
@@ -33,9 +33,18 @@ fn build_g_table_bytes() -> Vec<u8> {
             let sk = SecretKey::from_slice(&sk_bytes).expect("g_table scalar should be < N");
             let pk = PublicKey::from_secret_key(&secp, &sk);
             let unc = pk.serialize_uncompressed();
-            let off = (i * 15 + (j as usize - 1)) * 64;
-            table[off..off + 32].copy_from_slice(&unc[1..33]);
-            table[off + 32..off + 64].copy_from_slice(&unc[33..65]);
+            let off = (i * 15 + (j as usize - 1)) * 16;
+
+            for w in 0..8usize {
+                let xb = 1 + w * 4;
+                let yb = 33 + w * 4;
+                table[off + w] = u32::from_be_bytes([
+                    unc[xb], unc[xb + 1], unc[xb + 2], unc[xb + 3],
+                ]);
+                table[off + 8 + w] = u32::from_be_bytes([
+                    unc[yb], unc[yb + 1], unc[yb + 2], unc[yb + 3],
+                ]);
+            }
         }
     }
     table
@@ -75,7 +84,7 @@ impl Gpu {
             .clone_htod(&packed)
             .map_err(|e| format!("htod wordlist: {e}"))?;
 
-        let g_table = build_g_table_bytes();
+        let g_table = build_g_table_words();
         let d_g_table = stream
             .clone_htod(&g_table)
             .map_err(|e| format!("htod g_table: {e}"))?;
