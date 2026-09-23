@@ -36,6 +36,14 @@ The tool will:
 ```
 Runs 5 chunks of 4 M candidates and prints the rate per chunk. Useful to confirm your hardware is hitting expected throughput (~1.85 M c/s on RTX 5090).
 
+For non-interactive GPU correctness validation (useful before benchmarking an experimental kernel):
+
+```bash
+./target/release/seedphrase_recovery --self-test
+```
+
+This exits non-zero if CUDA initialization or any of the three BIP84 GPU reference vectors fails.
+
 ## Derivation paths
 
 Default `m/84'/0'/0'/0/0`. If the default does not match, the tool offers 22 alternative paths (receive indices 0/1 - 0/19, accounts 1'/0/0 and 2'/0/0, change `0'/1/0`).
