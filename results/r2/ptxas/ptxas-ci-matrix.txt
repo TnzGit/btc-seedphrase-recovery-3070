@@ -1,0 +1,78 @@
+##[group]Run echo "=== lb2 sha_noinline=0 hmac_noinline=0 ==="
+[36;1mecho "=== lb2 sha_noinline=0 hmac_noinline=0 ==="[0m
+=== lb2 sha_noinline=0 hmac_noinline=0 ===
+ptxas info    : 32 bytes gmem, 1120 bytes cmem[3], 8 bytes cmem[4]
+ptxas info    : Compiling entry function 'recovery_enumerate' for 'sm_86'
+ptxas info    : Function properties for recovery_enumerate
+    1952 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 128 registers, 1952 bytes cumulative stack size, 464 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Function properties for _Z11hmac_sha512PKhiS0_iPh
+    0 bytes stack frame, 512 bytes spill stores, 512 bytes spill loads
+ptxas info    : Function properties for _Z15point_add_mixedPKjS0_S0_S0_S0_PjS1_S1_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Function properties for _Z24pbkdf2_hmac_sha512_blockPKhiS0_iiPh
+    0 bytes stack frame, 856 bytes spill stores, 872 bytes spill loads
+##[group]Run echo "=== lb2 sha_noinline=1 hmac_noinline=0 ==="
+[36;1mecho "=== lb2 sha_noinline=1 hmac_noinline=0 ==="[0m
+=== lb2 sha_noinline=1 hmac_noinline=0 ===
+ptxas info    : 32 bytes gmem, 1120 bytes cmem[3], 8 bytes cmem[4]
+ptxas info    : Compiling entry function 'recovery_enumerate' for 'sm_86'
+ptxas info    : Function properties for recovery_enumerate
+    1936 bytes stack frame, 1092 bytes spill stores, 1224 bytes spill loads
+ptxas info    : Used 128 registers, 1936 bytes cumulative stack size, 464 bytes cmem[0]
+ptxas info    : Function properties for _Z21sha512_compress_wordsPyyyyyyyyyyyyyyyyy
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+##[group]Run echo "=== lb2 sha_noinline=0 hmac_noinline=1 ==="
+[36;1mecho "=== lb2 sha_noinline=0 hmac_noinline=1 ==="[0m
+=== lb2 sha_noinline=0 hmac_noinline=1 ===
+ptxas info    : 32 bytes gmem, 1120 bytes cmem[3], 8 bytes cmem[4]
+ptxas info    : Compiling entry function 'recovery_enumerate' for 'sm_86'
+ptxas info    : Function properties for recovery_enumerate
+    2416 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 128 registers, 2416 bytes cumulative stack size, 464 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Function properties for _Z11hmac_sha512PKhiS0_iPh
+    0 bytes stack frame, 512 bytes spill stores, 512 bytes spill loads
+ptxas info    : Function properties for _Z15point_add_mixedPKjS0_S0_S0_S0_PjS1_S1_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Function properties for _Z24pbkdf2_hmac_sha512_blockPKhiS0_iiPh
+    0 bytes stack frame, 1324 bytes spill stores, 1360 bytes spill loads
+ptxas info    : Function properties for _Z32hmac_sha512_finish_fixed64_wordsPKyS0_S0_Py
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+##[group]Run echo "=== lb2 sha_noinline=1 hmac_noinline=1 ==="
+[36;1mecho "=== lb2 sha_noinline=1 hmac_noinline=1 ==="[0m
+=== lb2 sha_noinline=1 hmac_noinline=1 ===
+ptxas info    : 32 bytes gmem, 1120 bytes cmem[3], 8 bytes cmem[4]
+ptxas info    : Compiling entry function 'recovery_enumerate' for 'sm_86'
+ptxas info    : Function properties for recovery_enumerate
+    1968 bytes stack frame, 1044 bytes spill stores, 1188 bytes spill loads
+ptxas info    : Used 128 registers, 1968 bytes cumulative stack size, 464 bytes cmem[0]
+ptxas info    : Function properties for _Z21sha512_compress_wordsPyyyyyyyyyyyyyyyyy
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Function properties for _Z32hmac_sha512_finish_fixed64_wordsPKyS0_S0_Py
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+##[group]Run echo "=== lb2 sha=1 hmac=0 pbkdf2=1 ==="
+[36;1mecho "=== lb2 sha=1 hmac=0 pbkdf2=1 ==="[0m
+=== lb2 sha=1 hmac=0 pbkdf2=1 ===
+ptxas info    : 32 bytes gmem, 1120 bytes cmem[3], 8 bytes cmem[4]
+ptxas info    : Compiling entry function 'recovery_enumerate' for 'sm_86'
+ptxas info    : Function properties for recovery_enumerate
+    2128 bytes stack frame, 120 bytes spill stores, 120 bytes spill loads
+ptxas info    : Used 128 registers, 2128 bytes cumulative stack size, 464 bytes cmem[0]
+ptxas info    : Function properties for _Z21sha512_compress_wordsPyyyyyyyyyyyyyyyyy
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Function properties for _Z24pbkdf2_hmac_sha512_blockPKhiS0_iiPh
+    0 bytes stack frame, 996 bytes spill stores, 1128 bytes spill loads
+##[group]Run echo "=== lb2 sha=1 hmac=1 pbkdf2=1 ==="
+[36;1mecho "=== lb2 sha=1 hmac=1 pbkdf2=1 ==="[0m
+=== lb2 sha=1 hmac=1 pbkdf2=1 ===
+ptxas info    : 32 bytes gmem, 1120 bytes cmem[3], 8 bytes cmem[4]
+ptxas info    : Compiling entry function 'recovery_enumerate' for 'sm_86'
+ptxas info    : Function properties for recovery_enumerate
+    2272 bytes stack frame, 84 bytes spill stores, 84 bytes spill loads
+ptxas info    : Used 128 registers, 2272 bytes cumulative stack size, 464 bytes cmem[0]
+ptxas info    : Function properties for _Z21sha512_compress_wordsPyyyyyyyyyyyyyyyyy
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Function properties for _Z24pbkdf2_hmac_sha512_blockPKhiS0_iiPh
+    0 bytes stack frame, 992 bytes spill stores, 1116 bytes spill loads
+ptxas info    : Function properties for _Z32hmac_sha512_finish_fixed64_wordsPKyS0_S0_Py
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads

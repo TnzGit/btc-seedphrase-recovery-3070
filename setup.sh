@@ -160,10 +160,13 @@ ok "Rust toolchain: $(cargo --version)"
 
 # Step 5: locate or clone the project, then build.
 if [ ! -f "Cargo.toml" ] || ! grep -q "seedphrase_recovery" Cargo.toml 2>/dev/null; then
-    info "Cloning repository..."
-    [ -d btc-seedphrase-recovery ] && fail "Directory 'btc-seedphrase-recovery' already exists - cd into it and run ./setup.sh from inside."
-    git clone --depth=1 https://github.com/zunmax/btc-seedphrase-recovery.git
-    cd btc-seedphrase-recovery
+    info "Cloning RTX 3070 optimization fork..."
+    CLONE_DIR="${SEEDPHRASE_CLONE_DIR:-btc-seedphrase-recovery-3070}"
+    REPO_URL="${SEEDPHRASE_REPO_URL:-https://github.com/TnzGit/btc-seedphrase-recovery-3070.git}"
+    REPO_BRANCH="${SEEDPHRASE_REPO_BRANCH:-opt/sm86-rtx3070-r2}"
+    [ -d "$CLONE_DIR" ] && fail "Directory '$CLONE_DIR' already exists - cd into it and run ./setup.sh from inside."
+    git clone --depth=1 --branch "$REPO_BRANCH" "$REPO_URL" "$CLONE_DIR"
+    cd "$CLONE_DIR"
 fi
 PROJECT_DIR="$(pwd)"
 

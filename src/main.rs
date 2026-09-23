@@ -29,6 +29,10 @@ fn main() {
         run_bench();
         return;
     }
+    if args.len() >= 2 && args[1] == "--self-test" {
+        run_self_test_cli();
+        return;
+    }
 
     print_header();
 
@@ -484,12 +488,49 @@ fn compute_last_word_checksum(
     (last_entropy << checksum_bits) | (cs as u16)
 }
 
+fn run_self_test_cli() {
+    let gpu = match Gpu::new() {
+        Ok(g) => g,
+        Err(e) => {
+            eprintln!("gpu init FAILED: {e}");
+            std::process::exit(1);
+        }
+    };
+    println!("Device: {}", gpu.device_name());
+    match gpu.kernel_resource_summary() {
+        Ok(summary) => println!("Kernel resources: {summary}"),
+        Err(e) => eprintln!("Kernel resource query warning: {e}"),
+    }
+    match gpu.self_test() {
+        Ok(()) => println!("GPU self-test: PASS (3/3 BIP84 reference vectors)"),
+        Err(e) => {
+            eprintln!("GPU self-test: FAIL: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
 fn run_bench() {
     let gpu = match Gpu::new() {
         Ok(g) => g,
-        Err(e) => { eprintln!("gpu init: {e}"); return; }
+        Err(e) => {
+            eprintln!("gpu init FAILED: {e}");
+            std::process::exit(1);
+        }
     };
     println!("Device: {}", gpu.device_name());
+    match gpu.kernel_resource_summary() {
+        Ok(summary) => println!("Kernel resources: {summary}"),
+        Err(e) => eprintln!("Kernel resource query warning: {e}"),
+    }
+    println!(
+        "Bench config: block={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}  noinline_pbkdf2={}",
+        std::env::var("SEEDPHRASE_BLOCK").unwrap_or_else(|_| "256(default)".to_string()),
+        std::env::var("SEEDPHRASE_LB_MIN_BLOCKS").unwrap_or_else(|_| "2(default)".to_string()),
+        std::env::var("SEEDPHRASE_NOINLINE_SHA512_WORDS").unwrap_or_else(|_| "0(default)".to_string()),
+        std::env::var("SEEDPHRASE_NOINLINE_FIXED64_HMAC").unwrap_or_else(|_| "0(default)".to_string()),
+        std::env::var("SEEDPHRASE_NOINLINE_PBKDF2").unwrap_or_else(|_| "0(default)".to_string()),
+    );
     let wordlist = Language::English.word_list();
     let abandon_idx = wordlist.iter().position(|w| *w == "abandon").unwrap() as u16;
     let mut known = [0u16; 24];
@@ -502,13 +543,61 @@ fn run_bench() {
     let offset: u64 = 1u64 << 28;
     let chunk: u64 = 1u64 << 22;
     /* Time chunks back-to-back with NO warm-up - the cold first chunk reveals GPU clock
-     * ramp-up plus first-launch JIT cost. Subsequent chunks are steady state. */
+     * ramp-up plus first-launch JIT cost. Subsequent chunks are steady state.
+     *
+     * The enumeration result MUST NOT be discarded: a failed kernel launch returns Err, and
+     * silently ignoring it makes a broken configuration look like an impossibly fast one
+     * (a zero-second chunk printed as tens of thousands of M c/s). Abort instead, and never
+     * divide by a zero elapsed time. */
+    let mut total_secs = 0.0f64;
+    let mut measured = 0u32;
+    let mut steady_secs = 0.0f64;
+    let mut steady_measured = 0u32;
     for i in 0..5 {
         let start = std::time::Instant::now();
-        let _ = gpu.run_enumeration(&known, 12, 4, &missing, true, offset, chunk, salt, &path, &target);
+        match gpu.run_enumeration(&known, 12, 4, &missing, true, offset, chunk, salt, &path, &target) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("chunk #{i} FAILED: {e}");
+                eprintln!("benchmark aborted - refusing to report a rate for a kernel that did not run.");
+                std::process::exit(1);
+            }
+        }
         let elapsed = start.elapsed().as_secs_f64();
-        let rate = chunk as f64 / elapsed;
-        println!("chunk #{}  elapsed = {:.3}s  rate = {:.2} M c/s", i, elapsed, rate / 1_000_000.0);
+        if elapsed <= 0.0 {
+            eprintln!("chunk #{i} reported a non-positive elapsed time ({elapsed}); aborting.");
+            std::process::exit(1);
+        }
+        total_secs += elapsed;
+        measured += 1;
+        if i > 0 {
+            steady_secs += elapsed;
+            steady_measured += 1;
+        }
+        println!(
+            "chunk #{}  elapsed = {:.3}s  rate = {:.2} M c/s",
+            i,
+            elapsed,
+            chunk as f64 / elapsed / 1_000_000.0
+        );
+    }
+    if measured > 0 {
+        let candidates = chunk * measured as u64;
+        println!(
+            "total {} candidates in {:.3}s  weighted_all = {:.0} c/s",
+            candidates,
+            total_secs,
+            candidates as f64 / total_secs
+        );
+    }
+    if steady_measured > 0 {
+        let steady_candidates = chunk * steady_measured as u64;
+        println!(
+            "steady(chunks 1..4) {} candidates in {:.3}s  weighted_steady = {:.0} c/s",
+            steady_candidates,
+            steady_secs,
+            steady_candidates as f64 / steady_secs
+        );
     }
 }
 

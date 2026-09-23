@@ -1,0 +1,10 @@
+r1-main chunks=5 sum=70.679 weighted=296715
+r1-opt_sm86-rtx3070-core chunks=5 sum=69.445 weighted=301987
+r1-opt_sm86-rtx3070-v1 chunks=5 sum=69.017 weighted=303860
+r2-main chunks=5 sum=70.627 weighted=296933
+r2-opt_sm86-rtx3070-core chunks=5 sum=69.139 weighted=303324
+r2-opt_sm86-rtx3070-v1 chunks=5 sum=67.671 weighted=309904
+r3-main chunks=5 sum=70.002 weighted=299584
+r3-opt_sm86-rtx3070-core chunks=5 sum=68.796 weighted=304836
+r3-opt_sm86-rtx3070-v1 chunks=5 sum=67.492 weighted=310726
+REPEATS DONE

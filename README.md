@@ -10,7 +10,7 @@ Recover missing words of a BIP39 seed phrase for a Bitcoin native SegWit (`bc1q.
 ## Install
 
 ```bash
-curl -O https://raw.githubusercontent.com/zunmax/btc-seedphrase-recovery/main/setup.sh && chmod +x setup.sh && ./setup.sh
+curl -O https://raw.githubusercontent.com/TnzGit/btc-seedphrase-recovery-3070/opt/sm86-rtx3070-r2/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 
 The script installs build tools, the CUDA toolkit (if missing), and Rust; clones the repo if you ran it from outside; and builds the release binary. At the end it prints the exact path to run.
@@ -35,6 +35,16 @@ The tool will:
 ./target/release/seedphrase_recovery --bench
 ```
 Runs 5 chunks of 4 M candidates and prints the rate per chunk. Useful to confirm your hardware is hitting expected throughput (~1.85 M c/s on RTX 5090).
+
+For non-interactive GPU correctness validation (useful before benchmarking an experimental kernel):
+
+```bash
+./target/release/seedphrase_recovery --self-test
+```
+
+This exits non-zero if CUDA initialization or any of the three BIP84 GPU reference vectors fails.
+
+Both `--self-test` and `--bench` print a `Kernel resources:` line with CUDA driver-reported registers/thread, local memory/thread, static shared memory/block, and max threads/block.
 
 ## Derivation paths
 

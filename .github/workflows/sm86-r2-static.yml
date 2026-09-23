@@ -1,0 +1,109 @@
+name: SM86 R2 static resource checks
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-r2
+  workflow_dispatch:
+
+concurrency:
+  group: sm86-r2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Regression-test SM86 probe guard
+        run: cargo test sm86_probe_guard_rejects_only_known_bad_combo
+      - run: cargo check
+
+  ptxas-resources:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        min_blocks: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM86 cubin and print ptxas resource usage
+        run: |
+          echo "=== __launch_bounds__(256, ${{ matrix.min_blocks }}) ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=${{ matrix.min_blocks }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/kernel-lb${{ matrix.min_blocks }}.cubin
+
+
+  ptxas-inline-experiments:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sha_noinline: [0, 1]
+        hmac_noinline: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM86 inline/noinline experiment
+        run: |
+          echo "=== lb2 sha_noinline=${{ matrix.sha_noinline }} hmac_noinline=${{ matrix.hmac_noinline }} ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=${{ matrix.sha_noinline }} \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=${{ matrix.hmac_noinline }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/kernel-inline-${{ matrix.sha_noinline }}-${{ matrix.hmac_noinline }}.cubin
+
+
+  ptxas-pbkdf2-boundary:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile the only legal SHA+PBKDF2 noinline boundary
+        run: |
+          echo "=== lb2 sha=1 hmac=1 pbkdf2=1 ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=1 \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=1 \
+            -DRECOVERY_NOINLINE_PBKDF2=1 \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/kernel-pbkdf2-boundary-legal.cubin
+
+  known-bad-cuda-guard:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Known-bad E combination must be rejected by preprocessing
+        run: |
+          set +e
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=1 \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=0 \
+            -DRECOVERY_NOINLINE_PBKDF2=1 \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/should-not-exist.cubin \
+            > /tmp/guard.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/guard.log
+          test "$rc" -ne 0
+          grep -q "failed the RTX 3070 BIP84 correctness gate" /tmp/guard.log

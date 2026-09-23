@@ -1,0 +1,13 @@
+########## SELFTEST main ##########
+exit=0 wall=14.528333211s
+  Device: NVIDIA GeForce RTX 3070
+  GPU self-test (3 BIP84 reference vectors)... PASS
+########## SELFTEST opt_sm86-rtx3070-core ##########
+exit=0 wall=26.945930314s
+  Device: NVIDIA GeForce RTX 3070
+  GPU self-test (3 BIP84 reference vectors)... PASS
+########## SELFTEST opt_sm86-rtx3070-v1 ##########
+exit=0 wall=27.644410710s
+  Device: NVIDIA GeForce RTX 3070
+  GPU self-test (3 BIP84 reference vectors)... PASS
+########## SELFTEST DONE ##########

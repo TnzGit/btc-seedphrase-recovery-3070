@@ -41,13 +41,82 @@ fn build_g_table_bytes() -> Vec<u8> {
     table
 }
 
+fn validate_sm86_probe_combo(
+    noinline_sha512_words: bool,
+    noinline_fixed64_hmac: bool,
+    noinline_pbkdf2: bool,
+) -> Result<(), String> {
+    if noinline_sha512_words && noinline_pbkdf2 && !noinline_fixed64_hmac {
+        return Err(
+            "unsafe SM86 probe combination disabled: SEEDPHRASE_NOINLINE_SHA512_WORDS=1 + SEEDPHRASE_NOINLINE_PBKDF2=1 requires SEEDPHRASE_NOINLINE_FIXED64_HMAC=1; the hmac=0 combination failed the 3-vector BIP84 GPU self-test reproducibly"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 impl Gpu {
     pub fn new() -> Result<Self, String> {
         let opts = CompileOptions {
-            use_fast_math: Some(true),
+            // This fork targets RTX 3070 / GA104 (SM86). Explicit virtual architecture
+            // lets NVRTC generate Ampere-aware PTX instead of relying on its toolkit default.
+            arch: Some("compute_86"),
+            // The hot path is integer SHA/secp256k1; fast-math does not help it.
+            use_fast_math: Some(false),
             ..Default::default()
         };
-        let ptx = compile_ptx_with_opts(KERNEL_SRC, opts).map_err(|e| format!("nvrtc compile failed: {e}"))?;
+
+        // Production default is __launch_bounds__(256, 2). Expose only the min-blocks
+        // term as an explicit experiment knob so local benchmarking does not need to
+        // patch kernel.cu in-place. Invalid values fail loudly rather than silently
+        // changing the generated code.
+        let lb_min_blocks = match std::env::var("SEEDPHRASE_LB_MIN_BLOCKS") {
+            Ok(raw) => {
+                let v: u32 = raw
+                    .parse()
+                    .map_err(|_| format!("invalid SEEDPHRASE_LB_MIN_BLOCKS={raw:?}: expected integer 1..=4"))?;
+                if !(1..=4).contains(&v) {
+                    return Err(format!(
+                        "invalid SEEDPHRASE_LB_MIN_BLOCKS={v}: expected 1..=4"
+                    ));
+                }
+                v
+            }
+            Err(std::env::VarError::NotPresent) => 2,
+            Err(e) => return Err(format!("read SEEDPHRASE_LB_MIN_BLOCKS: {e}")),
+        };
+        let parse_probe_flag = |name: &str| -> Result<bool, String> {
+            match std::env::var(name) {
+                Ok(raw) => match raw.as_str() {
+                    "0" | "false" | "FALSE" => Ok(false),
+                    "1" | "true" | "TRUE" => Ok(true),
+                    _ => Err(format!("invalid {name}={raw:?}: expected 0/1 or false/true")),
+                },
+                Err(std::env::VarError::NotPresent) => Ok(false),
+                Err(e) => Err(format!("read {name}: {e}")),
+            }
+        };
+        let noinline_sha512_words = parse_probe_flag("SEEDPHRASE_NOINLINE_SHA512_WORDS")?;
+        let noinline_fixed64_hmac = parse_probe_flag("SEEDPHRASE_NOINLINE_FIXED64_HMAC")?;
+        let noinline_pbkdf2 = parse_probe_flag("SEEDPHRASE_NOINLINE_PBKDF2")?;
+
+        // Hardware validation found one reproducibly incorrect NVRTC probe combination.
+        validate_sm86_probe_combo(
+            noinline_sha512_words,
+            noinline_fixed64_hmac,
+            noinline_pbkdf2,
+        )?;
+
+        let kernel_src = format!(
+            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n{}",
+            lb_min_blocks,
+            if noinline_sha512_words { 1 } else { 0 },
+            if noinline_fixed64_hmac { 1 } else { 0 },
+            if noinline_pbkdf2 { 1 } else { 0 },
+            KERNEL_SRC
+        );
+        let ptx = compile_ptx_with_opts(&kernel_src, opts)
+            .map_err(|e| format!("nvrtc compile failed: {e}"))?;
         let ctx = CudaContext::new(0).map_err(|e| format!("cuda init failed: {e}"))?;
         let stream = ctx.default_stream();
         let module = ctx
@@ -154,13 +223,26 @@ impl Gpu {
         let iterations = PBKDF2_ITERATIONS;
         let path_len_i32 = path.len() as i32;
 
-        /* Block size is overridable for benchmarking via the SEEDPHRASE_BLOCK env var. Final
-         * value is chosen empirically; see README for the trade-off. */
-        let block: u32 = std::env::var("SEEDPHRASE_BLOCK")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .filter(|&b: &u32| b >= 32 && b <= 1024)
-            .unwrap_or(64);
+        /* Block size is overridable for benchmarking via the SEEDPHRASE_BLOCK env var. The SM86
+         * fork defaults to 256: on the reference RTX 3070 that was the fastest of 64/128/256 for
+         * every branch tested, and it matches the __launch_bounds__ ceiling declared on the
+         * kernel. Values outside 32..=256 or not divisible by 32 are rejected explicitly;
+         * never silently fall back during benchmarking. */
+        let block: u32 = match std::env::var("SEEDPHRASE_BLOCK") {
+            Ok(raw) => {
+                let b: u32 = raw
+                    .parse()
+                    .map_err(|_| format!("invalid SEEDPHRASE_BLOCK={raw:?}: expected a warp multiple in 32..=256"))?;
+                if !(32..=256).contains(&b) || b % 32 != 0 {
+                    return Err(format!(
+                        "invalid SEEDPHRASE_BLOCK={b}: expected a warp multiple in 32..=256"
+                    ));
+                }
+                b
+            }
+            Err(std::env::VarError::NotPresent) => 256,
+            Err(e) => return Err(format!("read SEEDPHRASE_BLOCK: {e}")),
+        };
         let grid: u32 = (chunk_size.div_ceil(block as u64) as u32).max(1);
         let cfg = LaunchConfig {
             grid_dim: (grid, 1, 1),
@@ -202,6 +284,31 @@ impl Gpu {
 
     pub fn device_name(&self) -> String {
         self.ctx.name().unwrap_or_else(|_| "unknown".to_string())
+    }
+
+    /// Return CUDA driver-reported resource usage for the loaded enumeration kernel.
+    /// This uses cuFuncGetAttribute through cudarc and works even when Nsight Compute
+    /// performance counters are unavailable (for example under restricted WSL setups).
+    pub fn kernel_resource_summary(&self) -> Result<String, String> {
+        let regs = self
+            .enum_kernel
+            .num_regs()
+            .map_err(|e| format!("query kernel registers: {e}"))?;
+        let local = self
+            .enum_kernel
+            .local_size_bytes()
+            .map_err(|e| format!("query kernel local memory: {e}"))?;
+        let shared = self
+            .enum_kernel
+            .shared_size_bytes()
+            .map_err(|e| format!("query kernel shared memory: {e}"))?;
+        let max_threads = self
+            .enum_kernel
+            .max_threads_per_block()
+            .map_err(|e| format!("query kernel max threads/block: {e}"))?;
+        Ok(format!(
+            "regs/thread={regs} local/thread={local}B shared/block={shared}B max_threads/block={max_threads}"
+        ))
     }
 
     /** Verify the production enumeration kernel against BIP84 reference vectors.
@@ -274,5 +381,28 @@ pub fn decode_bech32_p2wpkh_hash160(addr: &str) -> Result<[u8; 20], String> {
             Ok(out)
         }
         _ => Err("address is not a witness program (not bc1...)".to_string()),
+    }
+}
+
+
+#[cfg(test)]
+mod sm86_probe_tests {
+    use super::validate_sm86_probe_combo;
+
+    #[test]
+    fn sm86_probe_guard_rejects_only_known_bad_combo() {
+        for sha in [false, true] {
+            for hmac in [false, true] {
+                for pbkdf2 in [false, true] {
+                    let result = validate_sm86_probe_combo(sha, hmac, pbkdf2);
+                    let should_reject = sha && pbkdf2 && !hmac;
+                    assert_eq!(
+                        result.is_err(),
+                        should_reject,
+                        "unexpected guard result for sha={sha} hmac={hmac} pbkdf2={pbkdf2}"
+                    );
+                }
+            }
+        }
     }
 }
