@@ -487,7 +487,10 @@ fn compute_last_word_checksum(
 fn run_bench() {
     let gpu = match Gpu::new() {
         Ok(g) => g,
-        Err(e) => { eprintln!("gpu init: {e}"); return; }
+        Err(e) => {
+            eprintln!("gpu init FAILED: {e}");
+            std::process::exit(1);
+        }
     };
     println!("Device: {}", gpu.device_name());
     let wordlist = Language::English.word_list();
@@ -510,6 +513,8 @@ fn run_bench() {
      * divide by a zero elapsed time. */
     let mut total_secs = 0.0f64;
     let mut measured = 0u32;
+    let mut steady_secs = 0.0f64;
+    let mut steady_measured = 0u32;
     for i in 0..5 {
         let start = std::time::Instant::now();
         match gpu.run_enumeration(&known, 12, 4, &missing, true, offset, chunk, salt, &path, &target) {
@@ -527,15 +532,33 @@ fn run_bench() {
         }
         total_secs += elapsed;
         measured += 1;
-        println!("chunk #{}  elapsed = {:.3}s  rate = {:.2} M c/s", i, elapsed, chunk as f64 / elapsed / 1_000_000.0);
+        if i > 0 {
+            steady_secs += elapsed;
+            steady_measured += 1;
+        }
+        println!(
+            "chunk #{}  elapsed = {:.3}s  rate = {:.2} M c/s",
+            i,
+            elapsed,
+            chunk as f64 / elapsed / 1_000_000.0
+        );
     }
     if measured > 0 {
         let candidates = chunk * measured as u64;
         println!(
-            "total {} candidates in {:.3}s  weighted = {:.0} c/s",
+            "total {} candidates in {:.3}s  weighted_all = {:.0} c/s",
             candidates,
             total_secs,
             candidates as f64 / total_secs
+        );
+    }
+    if steady_measured > 0 {
+        let steady_candidates = chunk * steady_measured as u64;
+        println!(
+            "steady(chunks 1..4) {} candidates in {:.3}s  weighted_steady = {:.0} c/s",
+            steady_candidates,
+            steady_secs,
+            steady_candidates as f64 / steady_secs
         );
     }
 }
