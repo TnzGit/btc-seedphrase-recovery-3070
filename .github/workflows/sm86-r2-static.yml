@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - opt/sm86-rtx3070-r2
-  pull_request:
   workflow_dispatch:
 
 jobs:
