@@ -44,6 +44,8 @@ For non-interactive GPU correctness validation (useful before benchmarking an ex
 
 This exits non-zero if CUDA initialization or any of the three BIP84 GPU reference vectors fails.
 
+Both `--self-test` and `--bench` print a `Kernel resources:` line with CUDA driver-reported registers/thread, local memory/thread, static shared memory/block, and max threads/block.
+
 ## Derivation paths
 
 Default `m/84'/0'/0'/0/0`. If the default does not match, the tool offers 22 alternative paths (receive indices 0/1 - 0/19, accounts 1'/0/0 and 2'/0/0, change `0'/1/0`).
