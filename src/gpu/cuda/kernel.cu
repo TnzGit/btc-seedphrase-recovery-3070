@@ -472,6 +472,40 @@ __device__ RECOVERY_FIXED64_HMAC_INLINE void hmac_sha512_finish_fixed64_words(
     (u4)=_st[4]; (u5)=_st[5]; (u6)=_st[6]; (u7)=_st[7]; \
 } while (0)
 
+/* R3 experiment: fixed64 HMAC whose precomputed ipad/opad SHA states live
+ * in transposed shared memory: rows 0..7 = ipad, rows 8..15 = opad. */
+__device__ __forceinline__ void hmac_sha512_finish_fixed64_shared_state(
+    const uint64_t* state_shared,
+    int state_stride,
+    int tid,
+    const uint64_t msg_words[8],
+    uint64_t out_words[8]
+) {
+    uint64_t m0 = msg_words[0], m1 = msg_words[1], m2 = msg_words[2], m3 = msg_words[3];
+    uint64_t m4 = msg_words[4], m5 = msg_words[5], m6 = msg_words[6], m7 = msg_words[7];
+    uint64_t st[8];
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) st[i] = state_shared[i * state_stride + tid];
+    sha512_compress_words(
+        st, m0, m1, m2, m3, m4, m5, m6, m7,
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL
+    );
+
+    m0 = st[0]; m1 = st[1]; m2 = st[2]; m3 = st[3];
+    m4 = st[4]; m5 = st[5]; m6 = st[6]; m7 = st[7];
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) st[i] = state_shared[(8 + i) * state_stride + tid];
+    sha512_compress_words(
+        st, m0, m1, m2, m3, m4, m5, m6, m7,
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL
+    );
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) out_words[i] = st[i];
+}
+
 /* HMAC-SHA512 in one shot (recomputes ipad/opad per call). Used for BIP32 master derivation
  * (key = "Bitcoin seed", different per call would defeat caching). */
 __device__ void hmac_sha512(
@@ -494,6 +528,9 @@ __device__ void hmac_sha512(
 #endif
 #ifndef RECOVERY_PBKDF2_T_SHARED
 #define RECOVERY_PBKDF2_T_SHARED 0
+#endif
+#ifndef RECOVERY_PBKDF2_STATE_SHARED
+#define RECOVERY_PBKDF2_STATE_SHARED 0
 #endif
 
 #if RECOVERY_NOINLINE_SHA512_WORDS && RECOVERY_NOINLINE_PBKDF2 && !RECOVERY_NOINLINE_FIXED64_HMAC
@@ -593,6 +630,73 @@ __device__ __forceinline__ void pbkdf2_hmac_sha512_block_tshared(
     #pragma unroll
     for (int i = 0; i < 8; i++) T_final[i] = t_shared[i * t_stride + tid];
     sha512_state_to_bytes(T_final, out);
+}
+
+/* R3 experiment: move long-lived ipad/opad precomputed states into
+ * transposed shared memory while leaving U/T in the reference representation. */
+__device__ __forceinline__ void pbkdf2_hmac_sha512_block_state_shared(
+    const uint8_t* pwd, int pwd_len,
+    const uint8_t* salt, int salt_len,
+    int iterations,
+    uint8_t out[64],
+    uint64_t* state_shared,
+    int state_stride,
+    int tid,
+    uint64_t* t_shared_or_null
+) {
+    uint64_t ipad_tmp[8], opad_tmp[8];
+    hmac_sha512_precompute(pwd, pwd_len, ipad_tmp, opad_tmp);
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        state_shared[i * state_stride + tid] = ipad_tmp[i];
+        state_shared[(8 + i) * state_stride + tid] = opad_tmp[i];
+    }
+
+    /* U1 is paid once, so use the local precomputed state before its lifetime ends. */
+    uint8_t u1_bytes[64];
+    hmac_sha512_finish(ipad_tmp, opad_tmp, salt, salt_len, u1_bytes);
+
+    uint64_t U[8];
+#if RECOVERY_PBKDF2_T_SHARED
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        U[i] = load_be64(u1_bytes + i * 8);
+        t_shared_or_null[i * state_stride + tid] = U[i];
+    }
+
+    for (int it = 1; it < iterations; it++) {
+        hmac_sha512_finish_fixed64_shared_state(
+            state_shared, state_stride, tid, U, U
+        );
+        #pragma unroll
+        for (int i = 0; i < 8; i++) {
+            t_shared_or_null[i * state_stride + tid] ^= U[i];
+        }
+    }
+
+    uint64_t T_final[8];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) T_final[i] = t_shared_or_null[i * state_stride + tid];
+    sha512_state_to_bytes(T_final, out);
+#else
+    uint64_t T[8];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        U[i] = load_be64(u1_bytes + i * 8);
+        T[i] = U[i];
+    }
+
+    for (int it = 1; it < iterations; it++) {
+        hmac_sha512_finish_fixed64_shared_state(
+            state_shared, state_stride, tid, U, U
+        );
+        #pragma unroll
+        for (int i = 0; i < 8; i++) T[i] ^= U[i];
+    }
+
+    sha512_state_to_bytes(T, out);
+#endif
 }
 
 /* =========================================================================
@@ -1678,6 +1782,11 @@ extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVE
     __shared__ uint64_t s_pbkdf2_t[8][RECOVERY_LAUNCH_MAX_THREADS];
 #endif
 
+#if RECOVERY_PBKDF2_STATE_SHARED
+    /* 16 x 256 x u64 = 32 KiB/block for ipad+opad precomputed states. */
+    __shared__ uint64_t s_pbkdf2_state[16][RECOVERY_LAUNCH_MAX_THREADS];
+#endif
+
     /* The packed BIP39 table is only 24 KiB and is read once per candidate before
      * the long PBKDF2 loop. Keeping a 24 KiB copy per block caps SM86 residency, so
      * read it directly from global memory and let L1/L2 cache it. */
@@ -1777,7 +1886,17 @@ extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVE
 
     /* Run the pipeline. */
     uint8_t seed[64];
+#if RECOVERY_PBKDF2_STATE_SHARED
+    pbkdf2_hmac_sha512_block_state_shared(
+        mnemonic, mnemonic_len, salt, salt_len, iterations, seed,
+        &s_pbkdf2_state[0][0], RECOVERY_LAUNCH_MAX_THREADS, (int)threadIdx.x,
 #if RECOVERY_PBKDF2_T_SHARED
+        &s_pbkdf2_t[0][0]
+#else
+        (uint64_t*)0
+#endif
+    );
+#elif RECOVERY_PBKDF2_T_SHARED
     pbkdf2_hmac_sha512_block_tshared(
         mnemonic, mnemonic_len, salt, salt_len, iterations, seed,
         &s_pbkdf2_t[0][0], RECOVERY_LAUNCH_MAX_THREADS, (int)threadIdx.x
