@@ -41,6 +41,20 @@ fn build_g_table_bytes() -> Vec<u8> {
     table
 }
 
+fn validate_sm86_probe_combo(
+    noinline_sha512_words: bool,
+    noinline_fixed64_hmac: bool,
+    noinline_pbkdf2: bool,
+) -> Result<(), String> {
+    if noinline_sha512_words && noinline_pbkdf2 && !noinline_fixed64_hmac {
+        return Err(
+            "unsafe SM86 probe combination disabled: SEEDPHRASE_NOINLINE_SHA512_WORDS=1 + SEEDPHRASE_NOINLINE_PBKDF2=1 requires SEEDPHRASE_NOINLINE_FIXED64_HMAC=1; the hmac=0 combination failed the 3-vector BIP84 GPU self-test reproducibly"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 impl Gpu {
     pub fn new() -> Result<Self, String> {
         let opts = CompileOptions {
@@ -86,17 +100,12 @@ impl Gpu {
         let noinline_fixed64_hmac = parse_probe_flag("SEEDPHRASE_NOINLINE_FIXED64_HMAC")?;
         let noinline_pbkdf2 = parse_probe_flag("SEEDPHRASE_NOINLINE_PBKDF2")?;
 
-        // Hardware validation on the reference RTX 3070 found exactly one probe
-        // combination that reproducibly produces wrong BIP84 results under NVRTC:
-        // SHA words noinline + PBKDF2 noinline + fixed64 HMAC inline.
-        // Reject it before compiling so a throughput-only experiment can never promote
-        // a silently incorrect kernel.
-        if noinline_sha512_words && noinline_pbkdf2 && !noinline_fixed64_hmac {
-            return Err(
-                "unsafe SM86 probe combination disabled: SEEDPHRASE_NOINLINE_SHA512_WORDS=1 + SEEDPHRASE_NOINLINE_PBKDF2=1 requires SEEDPHRASE_NOINLINE_FIXED64_HMAC=1; the hmac=0 combination failed the 3-vector BIP84 GPU self-test reproducibly"
-                    .to_string(),
-            );
-        }
+        // Hardware validation found one reproducibly incorrect NVRTC probe combination.
+        validate_sm86_probe_combo(
+            noinline_sha512_words,
+            noinline_fixed64_hmac,
+            noinline_pbkdf2,
+        )?;
 
         let kernel_src = format!(
             "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n{}",
@@ -372,5 +381,28 @@ pub fn decode_bech32_p2wpkh_hash160(addr: &str) -> Result<[u8; 20], String> {
             Ok(out)
         }
         _ => Err("address is not a witness program (not bc1...)".to_string()),
+    }
+}
+
+
+#[cfg(test)]
+mod sm86_probe_tests {
+    use super::validate_sm86_probe_combo;
+
+    #[test]
+    fn sm86_probe_guard_rejects_only_known_bad_combo() {
+        for sha in [false, true] {
+            for hmac in [false, true] {
+                for pbkdf2 in [false, true] {
+                    let result = validate_sm86_probe_combo(sha, hmac, pbkdf2);
+                    let should_reject = sha && pbkdf2 && !hmac;
+                    assert_eq!(
+                        result.is_err(),
+                        should_reject,
+                        "unexpected guard result for sha={sha} hmac={hmac} pbkdf2={pbkdf2}"
+                    );
+                }
+            }
+        }
     }
 }
