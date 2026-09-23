@@ -69,6 +69,8 @@ R2 keeps the measured production default `__launch_bounds__(256,2)` and block 25
    - `SEEDPHRASE_NOINLINE_FIXED64_HMAC=1`
 8. Added GitHub Actions ptxas resource checks.
 9. Added `--self-test` as a non-interactive correctness gate for automation.
+10. `--bench` and `--self-test` now print CUDA driver resource attributes directly: registers/thread, local bytes/thread, shared bytes/block, and max threads/block. No external probe script is required for these four metrics.
+11. Added an opt-in `SEEDPHRASE_NOINLINE_PBKDF2=1` boundary probe, default OFF, to test whether SHA noinline can be combined with an explicit PBKDF2 call boundary.
 
 ## Important repository discrepancy
 
@@ -130,7 +132,7 @@ Commit a compact `SM86_RESULTS_R2.md` plus selected logs containing:
 - recovery smoke status
 - every `weighted_steady` result
 - mean / median and relative change vs A
-- cuFuncGetAttribute values if available
+- the built-in `Kernel resources:` line (cuFuncGetAttribute via cudarc)
 - ptxas registers / stack / spills
 - any contaminated run explicitly marked and excluded
 - final keep/reject decision for each experiment
