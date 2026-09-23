@@ -87,6 +87,7 @@ jobs:
 
 
   half-shared-schedule-ptxas:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
       image: nvidia/cuda:12.4.1-devel-ubuntu22.04
@@ -118,19 +119,21 @@ jobs:
           - max_threads: 256
             min_blocks: 2
           - max_threads: 128
-            min_blocks: 2
-          - max_threads: 128
             min_blocks: 3
-          - max_threads: 128
-            min_blocks: 4
-          - max_threads: 64
-            min_blocks: 4
-          - max_threads: 64
-            min_blocks: 5
           - max_threads: 64
             min_blocks: 6
-          - max_threads: 64
-            min_blocks: 8
+          - max_threads: 96
+            min_blocks: 4
+          - max_threads: 96
+            min_blocks: 5
+          - max_threads: 160
+            min_blocks: 2
+          - max_threads: 160
+            min_blocks: 3
+          - max_threads: 192
+            min_blocks: 2
+          - max_threads: 224
+            min_blocks: 2
     steps:
       - uses: actions/checkout@v4
       - name: Compile SM86 launch geometry
