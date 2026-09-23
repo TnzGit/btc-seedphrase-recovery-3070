@@ -29,6 +29,10 @@ fn main() {
         run_bench();
         return;
     }
+    if args.len() >= 2 && args[1] == "--self-test" {
+        run_self_test_cli();
+        return;
+    }
 
     print_header();
 
@@ -482,6 +486,24 @@ fn compute_last_word_checksum(
     let hash = hasher.finalize();
     let cs = hash[0] >> (8 - checksum_bits);
     (last_entropy << checksum_bits) | (cs as u16)
+}
+
+fn run_self_test_cli() {
+    let gpu = match Gpu::new() {
+        Ok(g) => g,
+        Err(e) => {
+            eprintln!("gpu init FAILED: {e}");
+            std::process::exit(1);
+        }
+    };
+    println!("Device: {}", gpu.device_name());
+    match gpu.self_test() {
+        Ok(()) => println!("GPU self-test: PASS (3/3 BIP84 reference vectors)"),
+        Err(e) => {
+            eprintln!("GPU self-test: FAIL: {e}");
+            std::process::exit(1);
+        }
+    }
 }
 
 fn run_bench() {
