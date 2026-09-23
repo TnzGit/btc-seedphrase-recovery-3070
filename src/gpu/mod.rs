@@ -158,13 +158,16 @@ impl Gpu {
         let iterations = PBKDF2_ITERATIONS;
         let path_len_i32 = path.len() as i32;
 
-        /* Block size is overridable for benchmarking via the SEEDPHRASE_BLOCK env var. Final
-         * SM86 fork defaults to 128; always benchmark 64/128/256 on the actual card. */
+        /* Block size is overridable for benchmarking via the SEEDPHRASE_BLOCK env var. The SM86
+         * fork defaults to 256: on the reference RTX 3070 that was the fastest of 64/128/256 for
+         * every branch tested, and it matches the __launch_bounds__ ceiling declared on the
+         * kernel. Do not raise this above 256 without also raising __launch_bounds__ - the
+         * kernel then refuses to launch with CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES. */
         let block: u32 = std::env::var("SEEDPHRASE_BLOCK")
             .ok()
             .and_then(|s| s.parse().ok())
-            .filter(|&b: &u32| b >= 32 && b <= 1024)
-            .unwrap_or(128);
+            .filter(|&b: &u32| b >= 32 && b <= 256)
+            .unwrap_or(256);
         let grid: u32 = (chunk_size.div_ceil(block as u64) as u32).max(1);
         let cfg = LaunchConfig {
             grid_dim: (grid, 1, 1),

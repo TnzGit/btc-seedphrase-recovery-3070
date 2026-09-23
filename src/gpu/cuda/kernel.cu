@@ -1525,7 +1525,7 @@ __device__ void sha256_entropy_block(const uint8_t* data, int data_len, uint32_t
     for (int i = 0; i < 8; i++) digest[i] = state[i];
 }
 
-extern "C" __global__ void recovery_enumerate(
+extern "C" __global__ void __launch_bounds__(256, 2) recovery_enumerate(
     const uint16_t* __restrict__ known_indices,    /* 24 entries, first mnemonic_length used */
     int mnemonic_length,
     int checksum_bits,
