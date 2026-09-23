@@ -524,8 +524,9 @@ fn run_bench() {
         Err(e) => eprintln!("Kernel resource query warning: {e}"),
     }
     println!(
-        "Bench config: block={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}  noinline_pbkdf2={}  pbkdf2_scalar_ut={}  pbkdf2_t_shared={}  pbkdf2_state_shared={}  sha512_half_shared_schedule={}",
-        std::env::var("SEEDPHRASE_BLOCK").unwrap_or_else(|_| "256(default)".to_string()),
+        "Bench config: block={}  lb_max_threads={}  lb_min_blocks={}  noinline_sha512_words={}  noinline_fixed64_hmac={}  noinline_pbkdf2={}  pbkdf2_scalar_ut={}  pbkdf2_t_shared={}  pbkdf2_state_shared={}  sha512_half_shared_schedule={}",
+        std::env::var("SEEDPHRASE_BLOCK").unwrap_or_else(|_| "compiled-max(default)".to_string()),
+        std::env::var("SEEDPHRASE_LB_MAX_THREADS").unwrap_or_else(|_| "256(default)".to_string()),
         std::env::var("SEEDPHRASE_LB_MIN_BLOCKS").unwrap_or_else(|_| "2(default)".to_string()),
         std::env::var("SEEDPHRASE_NOINLINE_SHA512_WORDS").unwrap_or_else(|_| "0(default)".to_string()),
         std::env::var("SEEDPHRASE_NOINLINE_FIXED64_HMAC").unwrap_or_else(|_| "0(default)".to_string()),
