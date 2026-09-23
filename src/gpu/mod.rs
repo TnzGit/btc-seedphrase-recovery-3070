@@ -265,6 +265,31 @@ impl Gpu {
         self.ctx.name().unwrap_or_else(|_| "unknown".to_string())
     }
 
+    /// Return CUDA driver-reported resource usage for the loaded enumeration kernel.
+    /// This uses cuFuncGetAttribute through cudarc and works even when Nsight Compute
+    /// performance counters are unavailable (for example under restricted WSL setups).
+    pub fn kernel_resource_summary(&self) -> Result<String, String> {
+        let regs = self
+            .enum_kernel
+            .num_regs()
+            .map_err(|e| format!("query kernel registers: {e}"))?;
+        let local = self
+            .enum_kernel
+            .local_size_bytes()
+            .map_err(|e| format!("query kernel local memory: {e}"))?;
+        let shared = self
+            .enum_kernel
+            .shared_size_bytes()
+            .map_err(|e| format!("query kernel shared memory: {e}"))?;
+        let max_threads = self
+            .enum_kernel
+            .max_threads_per_block()
+            .map_err(|e| format!("query kernel max threads/block: {e}"))?;
+        Ok(format!(
+            "regs/thread={regs} local/thread={local}B shared/block={shared}B max_threads/block={max_threads}"
+        ))
+    }
+
     /** Verify the production enumeration kernel against BIP84 reference vectors.
      *
      * For each vector we drop the last word of the mnemonic and let the kernel enumerate
