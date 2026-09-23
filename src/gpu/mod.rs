@@ -91,6 +91,29 @@ impl Gpu {
         let sha512_half_shared_schedule =
             parse_probe_flag("SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE")?;
 
+        let live_range_experiment =
+            pbkdf2_scalar_ut || pbkdf2_t_shared || pbkdf2_state_shared || sha512_half_shared_schedule;
+        if live_range_experiment
+            && (noinline_sha512_words || noinline_fixed64_hmac || noinline_pbkdf2)
+        {
+            return Err(
+                "R3 live-range experiments must not be combined with the rejected noinline probes"
+                    .to_string(),
+            );
+        }
+        if pbkdf2_scalar_ut && (pbkdf2_t_shared || pbkdf2_state_shared || sha512_half_shared_schedule) {
+            return Err(
+                "SEEDPHRASE_PBKDF2_SCALAR_UT is a standalone experiment and cannot be combined with shared-memory probes"
+                    .to_string(),
+            );
+        }
+        if sha512_half_shared_schedule && (pbkdf2_t_shared || pbkdf2_state_shared) {
+            return Err(
+                "SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE is a standalone experiment; do not combine it with PBKDF2 shared-state/T probes"
+                    .to_string(),
+            );
+        }
+
         // Hardware validation on the reference RTX 3070 found exactly one probe
         // combination that reproducibly produces wrong BIP84 results under NVRTC:
         // SHA words noinline + PBKDF2 noinline + fixed64 HMAC inline.
