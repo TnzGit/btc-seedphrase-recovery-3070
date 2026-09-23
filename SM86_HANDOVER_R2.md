@@ -56,6 +56,7 @@ R2 keeps the measured production default `__launch_bounds__(256,2)` and block 25
    - `SEEDPHRASE_NOINLINE_SHA512_WORDS=1`
    - `SEEDPHRASE_NOINLINE_FIXED64_HMAC=1`
 8. Added GitHub Actions ptxas resource checks.
+9. Added `--self-test` as a non-interactive correctness gate for automation.
 
 ## Important repository discrepancy
 
@@ -83,7 +84,11 @@ Do not promote a variant on a single run. Use alternating order and at least thr
 For every candidate that may be kept:
 
 1. Build release.
-2. Built-in three-vector GPU self-test must pass.
+2. Run the non-interactive gate with the exact experiment environment:
+   ```bash
+   ./target/release/seedphrase_recovery --self-test
+   ```
+   It must exit 0 and report 3/3 BIP84 vectors.
 3. Public/redacted end-to-end recovery smoke test must pass.
 4. `--bench` must return exit code 0.
 5. No invalid block-size fallback is allowed.
