@@ -86,6 +86,12 @@ impl Gpu {
             Err(std::env::VarError::NotPresent) => 2,
             Err(e) => return Err(format!("read SEEDPHRASE_LB_MIN_BLOCKS: {e}")),
         };
+        if launch_max_threads * lb_min_blocks > 1536 {
+            return Err(format!(
+                "invalid launch bounds ({launch_max_threads},{lb_min_blocks}) for SM86: max_threads * min_blocks must be <= 1536 threads/SM"
+            ));
+        }
+
         let parse_probe_flag = |name: &str| -> Result<bool, String> {
             match std::env::var(name) {
                 Ok(raw) => match raw.as_str() {
