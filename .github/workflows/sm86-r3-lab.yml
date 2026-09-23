@@ -109,6 +109,7 @@ jobs:
 
 
   launch-geometry-ptxas:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
       image: nvidia/cuda:12.4.1-devel-ubuntu22.04
