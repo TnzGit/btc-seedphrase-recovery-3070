@@ -51,7 +51,32 @@ impl Gpu {
             use_fast_math: Some(false),
             ..Default::default()
         };
-        let ptx = compile_ptx_with_opts(KERNEL_SRC, opts).map_err(|e| format!("nvrtc compile failed: {e}"))?;
+
+        // Production default is __launch_bounds__(256, 2). Expose only the min-blocks
+        // term as an explicit experiment knob so local benchmarking does not need to
+        // patch kernel.cu in-place. Invalid values fail loudly rather than silently
+        // changing the generated code.
+        let lb_min_blocks = match std::env::var("SEEDPHRASE_LB_MIN_BLOCKS") {
+            Ok(raw) => {
+                let v: u32 = raw
+                    .parse()
+                    .map_err(|_| format!("invalid SEEDPHRASE_LB_MIN_BLOCKS={raw:?}: expected integer 1..=4"))?;
+                if !(1..=4).contains(&v) {
+                    return Err(format!(
+                        "invalid SEEDPHRASE_LB_MIN_BLOCKS={v}: expected 1..=4"
+                    ));
+                }
+                v
+            }
+            Err(std::env::VarError::NotPresent) => 2,
+            Err(e) => return Err(format!("read SEEDPHRASE_LB_MIN_BLOCKS: {e}")),
+        };
+        let kernel_src = format!(
+            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n{}",
+            lb_min_blocks, KERNEL_SRC
+        );
+        let ptx = compile_ptx_with_opts(&kernel_src, opts)
+            .map_err(|e| format!("nvrtc compile failed: {e}"))?;
         let ctx = CudaContext::new(0).map_err(|e| format!("cuda init failed: {e}"))?;
         let stream = ctx.default_stream();
         let module = ctx
@@ -161,13 +186,23 @@ impl Gpu {
         /* Block size is overridable for benchmarking via the SEEDPHRASE_BLOCK env var. The SM86
          * fork defaults to 256: on the reference RTX 3070 that was the fastest of 64/128/256 for
          * every branch tested, and it matches the __launch_bounds__ ceiling declared on the
-         * kernel. Do not raise this above 256 without also raising __launch_bounds__ - the
-         * kernel then refuses to launch with CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES. */
-        let block: u32 = std::env::var("SEEDPHRASE_BLOCK")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .filter(|&b: &u32| b >= 32 && b <= 256)
-            .unwrap_or(256);
+         * kernel. Values outside 32..=256 or not divisible by 32 are rejected explicitly;
+         * never silently fall back during benchmarking. */
+        let block: u32 = match std::env::var("SEEDPHRASE_BLOCK") {
+            Ok(raw) => {
+                let b: u32 = raw
+                    .parse()
+                    .map_err(|_| format!("invalid SEEDPHRASE_BLOCK={raw:?}: expected a warp multiple in 32..=256"))?;
+                if !(32..=256).contains(&b) || b % 32 != 0 {
+                    return Err(format!(
+                        "invalid SEEDPHRASE_BLOCK={b}: expected a warp multiple in 32..=256"
+                    ));
+                }
+                b
+            }
+            Err(std::env::VarError::NotPresent) => 256,
+            Err(e) => return Err(format!("read SEEDPHRASE_BLOCK: {e}")),
+        };
         let grid: u32 = (chunk_size.div_ceil(block as u64) as u32).max(1);
         let cfg = LaunchConfig {
             grid_dim: (grid, 1, 1),
