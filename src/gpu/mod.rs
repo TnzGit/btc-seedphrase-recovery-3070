@@ -84,12 +84,14 @@ impl Gpu {
         };
         let noinline_sha512_words = parse_probe_flag("SEEDPHRASE_NOINLINE_SHA512_WORDS")?;
         let noinline_fixed64_hmac = parse_probe_flag("SEEDPHRASE_NOINLINE_FIXED64_HMAC")?;
+        let noinline_pbkdf2 = parse_probe_flag("SEEDPHRASE_NOINLINE_PBKDF2")?;
 
         let kernel_src = format!(
-            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n{}",
+            "#define RECOVERY_LAUNCH_MIN_BLOCKS {}\n#define RECOVERY_NOINLINE_SHA512_WORDS {}\n#define RECOVERY_NOINLINE_FIXED64_HMAC {}\n#define RECOVERY_NOINLINE_PBKDF2 {}\n{}",
             lb_min_blocks,
             if noinline_sha512_words { 1 } else { 0 },
             if noinline_fixed64_hmac { 1 } else { 0 },
+            if noinline_pbkdf2 { 1 } else { 0 },
             KERNEL_SRC
         );
         let ptx = compile_ptx_with_opts(&kernel_src, opts)
