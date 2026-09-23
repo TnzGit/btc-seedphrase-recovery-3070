@@ -13,7 +13,6 @@ typedef unsigned short uint16_t;
 typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
-typedef long long int64_t;
 
 /* =========================================================================
  * PTX inline-assembly helpers for 32-bit multiword add/sub/mul-with-carry.
