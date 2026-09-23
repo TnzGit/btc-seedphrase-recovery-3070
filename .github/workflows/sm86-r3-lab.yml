@@ -1,0 +1,39 @@
+name: SM86 R3 lab static screen
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-r3-lab
+  workflow_dispatch:
+
+concurrency:
+  group: sm86-r3-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check
+
+  scalar-ut-ptxas:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        scalar_ut: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM86 scalar-U/T experiment
+        run: |
+          echo "=== scalar_ut=${{ matrix.scalar_ut }} ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=2 \
+            -DRECOVERY_PBKDF2_SCALAR_UT=${{ matrix.scalar_ut }} \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/kernel-scalar-ut-${{ matrix.scalar_ut }}.cubin
