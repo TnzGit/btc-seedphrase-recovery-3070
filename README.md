@@ -56,3 +56,13 @@ Default `m/84'/0'/0'/0/0`. If the default does not match, the tool offers 22 alt
 ## Disclaimer
 
 For legal recovery of wallets you own. The author is not responsible for misuse.
+
+
+## RTX 3070 / SM86 optimization work
+
+Development branches for RTX 3070 / GA104 tuning:
+
+- `opt/sm86-rtx3070-core`: SHA-512/PBKDF2/global-wordlist/SM86 compiler changes.
+- `opt/sm86-rtx3070-v1`: core changes plus aligned `u32` secp256k1 G-table loads.
+
+See [SM86_HANDOVER.md](SM86_HANDOVER.md) for the required A/B benchmark and Nsight Compute workflow. These branches must pass the built-in GPU self-test before use on a real recovery.
