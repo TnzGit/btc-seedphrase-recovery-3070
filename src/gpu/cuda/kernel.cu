@@ -13,7 +13,6 @@ typedef unsigned short uint16_t;
 typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
-typedef long long int64_t;
 
 /* =========================================================================
  * PTX inline-assembly helpers for 32-bit multiword add/sub/mul-with-carry.
@@ -1525,7 +1524,14 @@ __device__ void sha256_entropy_block(const uint8_t* data, int data_len, uint32_t
     for (int i = 0; i < 8; i++) digest[i] = state[i];
 }
 
-extern "C" __global__ void __launch_bounds__(256, 2) recovery_enumerate(
+#ifndef RECOVERY_LAUNCH_MAX_THREADS
+#define RECOVERY_LAUNCH_MAX_THREADS 256
+#endif
+#ifndef RECOVERY_LAUNCH_MIN_BLOCKS
+#define RECOVERY_LAUNCH_MIN_BLOCKS 2
+#endif
+
+extern "C" __global__ void __launch_bounds__(RECOVERY_LAUNCH_MAX_THREADS, RECOVERY_LAUNCH_MIN_BLOCKS) recovery_enumerate(
     const uint16_t* __restrict__ known_indices,    /* 24 entries, first mnemonic_length used */
     int mnemonic_length,
     int checksum_bits,
