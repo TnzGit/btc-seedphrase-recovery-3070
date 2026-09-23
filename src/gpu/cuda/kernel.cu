@@ -447,6 +447,31 @@ __device__ RECOVERY_FIXED64_HMAC_INLINE void hmac_sha512_finish_fixed64_words(
     for (int i = 0; i < 8; i++) out_words[i] = st[i];
 }
 
+/* R3 experiment: keep PBKDF2 U/T as scalar u64 values and update U in place.
+ * This removes the address-taken U[8] hot-loop object and avoids the extra
+ * msg_words -> m0..m7 copy used by hmac_sha512_finish_fixed64_words().
+ * Disabled by default; only used when RECOVERY_PBKDF2_SCALAR_UT=1. */
+#define HMAC_SHA512_FIXED64_SCALAR_INPLACE(ipad_state, opad_state, \
+                                            u0,u1,u2,u3,u4,u5,u6,u7) do { \
+    uint64_t _st[8]; \
+    _Pragma("unroll") \
+    for (int _i = 0; _i < 8; _i++) _st[_i] = (ipad_state)[_i]; \
+    sha512_compress_words( \
+        _st, (u0),(u1),(u2),(u3),(u4),(u5),(u6),(u7), \
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL \
+    ); \
+    (u0)=_st[0]; (u1)=_st[1]; (u2)=_st[2]; (u3)=_st[3]; \
+    (u4)=_st[4]; (u5)=_st[5]; (u6)=_st[6]; (u7)=_st[7]; \
+    _Pragma("unroll") \
+    for (int _i = 0; _i < 8; _i++) _st[_i] = (opad_state)[_i]; \
+    sha512_compress_words( \
+        _st, (u0),(u1),(u2),(u3),(u4),(u5),(u6),(u7), \
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL \
+    ); \
+    (u0)=_st[0]; (u1)=_st[1]; (u2)=_st[2]; (u3)=_st[3]; \
+    (u4)=_st[4]; (u5)=_st[5]; (u6)=_st[6]; (u7)=_st[7]; \
+} while (0)
+
 /* HMAC-SHA512 in one shot (recomputes ipad/opad per call). Used for BIP32 master derivation
  * (key = "Bitcoin seed", different per call would defeat caching). */
 __device__ void hmac_sha512(
@@ -463,6 +488,9 @@ __device__ void hmac_sha512(
  * salt should already include the 4-byte big-endian block counter (e.g. "mnemonic\0\0\0\1"). */
 #ifndef RECOVERY_NOINLINE_PBKDF2
 #define RECOVERY_NOINLINE_PBKDF2 0
+#endif
+#ifndef RECOVERY_PBKDF2_SCALAR_UT
+#define RECOVERY_PBKDF2_SCALAR_UT 0
 #endif
 
 #if RECOVERY_NOINLINE_SHA512_WORDS && RECOVERY_NOINLINE_PBKDF2 && !RECOVERY_NOINLINE_FIXED64_HMAC
@@ -487,6 +515,25 @@ __device__ RECOVERY_PBKDF2_INLINE void pbkdf2_hmac_sha512_block(
     uint8_t u1_bytes[64];
     hmac_sha512_finish(ipad_state, opad_state, salt, salt_len, u1_bytes);
 
+#if RECOVERY_PBKDF2_SCALAR_UT
+    uint64_t u0 = load_be64(u1_bytes +  0), u1 = load_be64(u1_bytes +  8);
+    uint64_t u2 = load_be64(u1_bytes + 16), u3 = load_be64(u1_bytes + 24);
+    uint64_t u4 = load_be64(u1_bytes + 32), u5 = load_be64(u1_bytes + 40);
+    uint64_t u6 = load_be64(u1_bytes + 48), u7 = load_be64(u1_bytes + 56);
+    uint64_t t0=u0, t1=u1, t2=u2, t3=u3, t4=u4, t5=u5, t6=u6, t7=u7;
+
+    /* U2..Uiterations: no address-taken U/T arrays in the hot loop. */
+    for (int it = 1; it < iterations; it++) {
+        HMAC_SHA512_FIXED64_SCALAR_INPLACE(
+            ipad_state, opad_state, u0,u1,u2,u3,u4,u5,u6,u7
+        );
+        t0 ^= u0; t1 ^= u1; t2 ^= u2; t3 ^= u3;
+        t4 ^= u4; t5 ^= u5; t6 ^= u6; t7 ^= u7;
+    }
+
+    uint64_t T_final[8] = { t0,t1,t2,t3,t4,t5,t6,t7 };
+    sha512_state_to_bytes(T_final, out);
+#else
     uint64_t U[8], T[8];
     #pragma unroll
     for (int i = 0; i < 8; i++) {
@@ -502,6 +549,7 @@ __device__ RECOVERY_PBKDF2_INLINE void pbkdf2_hmac_sha512_block(
     }
 
     sha512_state_to_bytes(T, out);
+#endif
 }
 
 /* =========================================================================
