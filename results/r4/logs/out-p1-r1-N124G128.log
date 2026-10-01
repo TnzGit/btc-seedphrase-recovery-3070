@@ -1,0 +1,14 @@
+=== RUN p1-r1-N124G128 env: LD_LIBRARY_PATH=/home/user/r4env/nvrtc124/usr/lib/x86_64-linux-gnu:/usr/lib/wsl/lib SEEDPHRASE_LB_MAX_THREADS=128 SEEDPHRASE_LB_MIN_BLOCKS=3 SEEDPHRASE_BLOCK=128 ===
+=== NVRTC probe (same dir, same LD_LIBRARY_PATH): ===
+dir=/home/user/r4env/nvrtc124/usr/lib/x86_64-linux-gnu nvrtcVersion=12.4 loaded=/home/user/r4env/nvrtc124/usr/lib/x86_64-linux-gnu/libnvrtc.so.12
+builtins_in_same_dir= ['libnvrtc-builtins.so.12.4', 'libnvrtc-builtins.so.12.4.127']
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=168 local/thread=1744B shared/block=0B max_threads/block=128
+Bench config: block=128  lb_max_threads=128  lb_min_blocks=3  noinline_sha512_words=0(default)  noinline_fixed64_hmac=0(default)  noinline_pbkdf2=0(default)  pbkdf2_scalar_ut=0(default)  pbkdf2_t_shared=0(default)  pbkdf2_state_shared=0(default)  sha512_half_shared_schedule=0(default)
+chunk #0  elapsed = 13.516s  rate = 0.31 M c/s
+chunk #1  elapsed = 13.487s  rate = 0.31 M c/s
+chunk #2  elapsed = 13.535s  rate = 0.31 M c/s
+chunk #3  elapsed = 13.546s  rate = 0.31 M c/s
+chunk #4  elapsed = 13.552s  rate = 0.31 M c/s
+total 20971520 candidates in 67.636s  weighted_all = 310067 c/s
+steady(chunks 1..4) 16777216 candidates in 54.120s  weighted_steady = 310002 c/s

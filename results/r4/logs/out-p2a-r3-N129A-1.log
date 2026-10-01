@@ -1,0 +1,14 @@
+=== RUN p2a-r3-N129A-1 env: LD_LIBRARY_PATH=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib:/usr/lib/wsl/lib SEEDPHRASE_LB_MAX_THREADS=256 SEEDPHRASE_LB_MIN_BLOCKS=2 SEEDPHRASE_BLOCK=256 ===
+=== NVRTC probe (same dir, same LD_LIBRARY_PATH): ===
+dir=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib nvrtcVersion=12.9 loaded=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib/libnvrtc.so.12
+builtins_in_same_dir= ['libnvrtc-builtins.so.12.9', 'libnvrtc-builtins.so.12.9.86']
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=128 local/thread=2016B shared/block=0B max_threads/block=256
+Bench config: block=256  lb_max_threads=256  lb_min_blocks=2  noinline_sha512_words=0(default)  noinline_fixed64_hmac=0(default)  noinline_pbkdf2=0(default)  pbkdf2_scalar_ut=0(default)  pbkdf2_t_shared=0(default)  pbkdf2_state_shared=0(default)  sha512_half_shared_schedule=0(default)
+chunk #0  elapsed = 13.854s  rate = 0.30 M c/s
+chunk #1  elapsed = 13.857s  rate = 0.30 M c/s
+chunk #2  elapsed = 13.865s  rate = 0.30 M c/s
+chunk #3  elapsed = 13.856s  rate = 0.30 M c/s
+chunk #4  elapsed = 13.815s  rate = 0.30 M c/s
+total 20971520 candidates in 69.248s  weighted_all = 302845 c/s
+steady(chunks 1..4) 16777216 candidates in 55.394s  weighted_steady = 302870 c/s

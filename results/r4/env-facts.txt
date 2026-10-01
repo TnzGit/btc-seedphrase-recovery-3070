@@ -1,0 +1,40 @@
+# R4 NVRTC environment facts (N124 vs N129)
+
+Host: user@192.168.10.131 (WSL2, Ubuntu 26.04, kernel 6.6.87.2-microsoft-standard-WSL2)
+GPU: NVIDIA GeForce RTX 3070 8192 MiB (GA104/SM86), driver 596.36, power limit 240 W (unchanged)
+Binary: single build at opt/sm86-rtx3070-r4-env (Rust/Cargo 1.93.1, cudarc 0.19 dynamic loading)
+Build command: RUSTC=/usr/bin/rustc-1.93 cargo-1.93 build --locked --release
+
+## N129 (known R3 environment, retained)
+- Directory: /home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib
+- Libraries actually loaded (LD_DEBUG=files proof, gate logs):
+  - libnvrtc.so -> .../cuda-12.9/targets/x86_64-linux/lib/libnvrtc.so (ctypes nvrtcVersion = 12.9)
+  - libnvrtc-builtins.so.12.9 -> same directory (12.9.86)
+- File versions present: libnvrtc.so.12.9.86, libnvrtc-builtins.so.12.9.86 (and .so.12/.so.12.9 symlinks)
+- LD_LIBRARY_PATH used for every N129 run:
+  /home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib:/usr/lib/wsl/lib
+
+## N124 (recreated R2-style environment; R2 scratch /tmp/btc3070bench-j9PBaw no longer exists)
+- Provisioned WITHOUT touching system CUDA/driver:
+    apt-get download libnvrtc12 libnvrtc-builtins12.4
+    dpkg-deb -x each .deb into /home/user/r4env/nvrtc124/
+- Package versions: libnvrtc12 12.4.127~12.4.1-8, libnvrtc-builtins12.4 12.4.127~12.4.1-8
+  (Ubuntu resolute/multiverse; matches R2-reported NVRTC 12.4.127)
+- Directory: /home/user/r4env/nvrtc124/usr/lib/x86_64-linux-gnu
+- Libraries actually loaded (LD_DEBUG=files proof, gate logs):
+  - libnvrtc.so.12 -> /home/user/r4env/nvrtc124/usr/lib/x86_64-linux-gnu/libnvrtc.so.12 (ctypes nvrtcVersion = 12.4)
+  - libnvrtc-builtins.so.12.4 -> same directory (12.4.127)
+- LD_LIBRARY_PATH used for every N124 run:
+  /home/user/r4env/nvrtc124/usr/lib/x86_64-linux-gnu:/usr/lib/wsl/lib
+
+## Pairing / anti-shadowing checks
+- /usr/lib/wsl/lib contains libcuda only (NO libnvrtc) -> cannot shadow either toolkit.
+- In both environments libnvrtc and libnvrtc-builtins resolve from the SAME private directory
+  (LD_DEBUG "calling init" lines recorded per environment in results/r4/logs/gate-correctness.log).
+- Per-run version proof: scripts/nvrtc_ver.py (ctypes nvrtcVersion against the exact directory),
+  output embedded at the top of every run log.
+
+## CUDA cache / cold-start
+- Caches untouched between runs (identical policy for both toolchains).
+- weighted_steady (chunks 1..4) is the primary metric; NVRTC compile time only affects wall_s
+  (N124 wall ~77-82 s vs N129 wall ~66-70 s: 12.4 NVRTC compile is ~8-10 s slower, not part of throughput).
