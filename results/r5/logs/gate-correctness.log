@@ -1,0 +1,32 @@
+== gate A ==
+env: LD_LIBRARY_PATH=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib:/usr/lib/wsl/lib SEEDPHRASE_LB_MAX_THREADS=256 SEEDPHRASE_LB_MIN_BLOCKS=2 SEEDPHRASE_BLOCK=256 SEEDPHRASE_PBKDF2_SCALAR_UT=0 SEEDPHRASE_NOINLINE_SHA512_WORDS=0 SEEDPHRASE_NOINLINE_FIXED64_HMAC=0 SEEDPHRASE_NOINLINE_PBKDF2=0 SEEDPHRASE_PBKDF2_T_SHARED=0 SEEDPHRASE_PBKDF2_STATE_SHARED=0 SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE=0
+dir=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib nvrtcVersion=12.9 loaded=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib/libnvrtc.so.12
+builtins_in_same_dir= ['libnvrtc-builtins.so.12.9', 'libnvrtc-builtins.so.12.9.86']
+exit=0
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=128 local/thread=2016B shared/block=0B max_threads/block=256
+GPU self-test: PASS (3/3 BIP84 reference vectors)
+== gate A-S ==
+env: LD_LIBRARY_PATH=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib:/usr/lib/wsl/lib SEEDPHRASE_LB_MAX_THREADS=256 SEEDPHRASE_LB_MIN_BLOCKS=2 SEEDPHRASE_BLOCK=256 SEEDPHRASE_PBKDF2_SCALAR_UT=1 SEEDPHRASE_NOINLINE_SHA512_WORDS=0 SEEDPHRASE_NOINLINE_FIXED64_HMAC=0 SEEDPHRASE_NOINLINE_PBKDF2=0 SEEDPHRASE_PBKDF2_T_SHARED=0 SEEDPHRASE_PBKDF2_STATE_SHARED=0 SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE=0
+dir=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib nvrtcVersion=12.9 loaded=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib/libnvrtc.so.12
+builtins_in_same_dir= ['libnvrtc-builtins.so.12.9', 'libnvrtc-builtins.so.12.9.86']
+exit=0
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=128 local/thread=2016B shared/block=0B max_threads/block=256
+GPU self-test: PASS (3/3 BIP84 reference vectors)
+== gate G128 ==
+env: LD_LIBRARY_PATH=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib:/usr/lib/wsl/lib SEEDPHRASE_LB_MAX_THREADS=128 SEEDPHRASE_LB_MIN_BLOCKS=3 SEEDPHRASE_BLOCK=128 SEEDPHRASE_PBKDF2_SCALAR_UT=0 SEEDPHRASE_NOINLINE_SHA512_WORDS=0 SEEDPHRASE_NOINLINE_FIXED64_HMAC=0 SEEDPHRASE_NOINLINE_PBKDF2=0 SEEDPHRASE_PBKDF2_T_SHARED=0 SEEDPHRASE_PBKDF2_STATE_SHARED=0 SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE=0
+dir=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib nvrtcVersion=12.9 loaded=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib/libnvrtc.so.12
+builtins_in_same_dir= ['libnvrtc-builtins.so.12.9', 'libnvrtc-builtins.so.12.9.86']
+exit=0
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=168 local/thread=1744B shared/block=0B max_threads/block=128
+GPU self-test: PASS (3/3 BIP84 reference vectors)
+== gate G128-S ==
+env: LD_LIBRARY_PATH=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib:/usr/lib/wsl/lib SEEDPHRASE_LB_MAX_THREADS=128 SEEDPHRASE_LB_MIN_BLOCKS=3 SEEDPHRASE_BLOCK=128 SEEDPHRASE_PBKDF2_SCALAR_UT=1 SEEDPHRASE_NOINLINE_SHA512_WORDS=0 SEEDPHRASE_NOINLINE_FIXED64_HMAC=0 SEEDPHRASE_NOINLINE_PBKDF2=0 SEEDPHRASE_PBKDF2_T_SHARED=0 SEEDPHRASE_PBKDF2_STATE_SHARED=0 SEEDPHRASE_SHA512_HALF_SHARED_SCHEDULE=0
+dir=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib nvrtcVersion=12.9 loaded=/home/user/nvrtc/usr/local/cuda-12.9/targets/x86_64-linux/lib/libnvrtc.so.12
+builtins_in_same_dir= ['libnvrtc-builtins.so.12.9', 'libnvrtc-builtins.so.12.9.86']
+exit=0
+Device: NVIDIA GeForce RTX 3070
+Kernel resources: regs/thread=168 local/thread=1744B shared/block=0B max_threads/block=128
+GPU self-test: PASS (3/3 BIP84 reference vectors)
