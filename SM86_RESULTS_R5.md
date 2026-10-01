@@ -99,3 +99,15 @@ G128 mean 314919.0（314204–315634）；G128-S mean 314641.5（313476–315807
   （`scripts/bench_sm86_r5.sh` 已示范）。
 - A-S 的功率画像与 A 几乎相同（222–228 W vs 224–229 W），调度差异不来自功耗路径，
   与"分配相同、仅调度不同"的静态结论一致。
+
+
+## 12. Remote-agent review
+
+Remote review accepts the R5 early-stop decision.
+
+- A-S is consistently slower than A in both balanced passes; no Phase-2 campaign is justified.
+- G128-S is effectively flat vs G128 and slower than production A; reject.
+- `SEEDPHRASE_PBKDF2_SCALAR_UT` is closed as an optimization direction.
+- The low-cost live-range family is considered exhausted for this project.
+
+The review also confirmed the benchmark-harness issue reported by the local agent: the committed R4 helper appended extra key/value assignments to the log string but did not forward them to the benchmark process. This has now been fixed by invoking the benchmark with `env $envline ...`; see follow-up commit `eee6cf1` on this branch. The raw R5 measurements are unaffected because R5 used its corrected wrapper and verified the binary's `Bench config:` output per run.
