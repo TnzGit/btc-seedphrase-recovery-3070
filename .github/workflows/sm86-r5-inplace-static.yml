@@ -1,0 +1,39 @@
+name: SM86 R5 inplace static screen
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-r5-inplace
+  workflow_dispatch:
+
+jobs:
+  ptxas:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.9.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: a256-ref, max_threads: 256, min_blocks: 2, inplace: 0 }
+          - { name: a256-inplace, max_threads: 256, min_blocks: 2, inplace: 1 }
+          - { name: g128-ref, max_threads: 128, min_blocks: 3, inplace: 0 }
+          - { name: g128-inplace, max_threads: 128, min_blocks: 3, inplace: 1 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile
+        run: |
+          echo "=== ${{ matrix.name }} ==="
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MAX_THREADS=${{ matrix.max_threads }} \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=${{ matrix.min_blocks }} \
+            -DRECOVERY_FIXED64_INPLACE=${{ matrix.inplace }} \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=0 \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=0 \
+            -DRECOVERY_NOINLINE_PBKDF2=0 \
+            -DRECOVERY_PBKDF2_SCALAR_UT=0 \
+            -DRECOVERY_PBKDF2_T_SHARED=0 \
+            -DRECOVERY_PBKDF2_STATE_SHARED=0 \
+            -DRECOVERY_SHA512_HALF_SHARED_SCHEDULE=0 \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu -o /tmp/${{ matrix.name }}.cubin
