@@ -411,6 +411,9 @@ __device__ __forceinline__ void hmac_sha512_finish(
 #ifndef RECOVERY_NOINLINE_FIXED64_HMAC
 #define RECOVERY_NOINLINE_FIXED64_HMAC 0
 #endif
+#ifndef RECOVERY_FIXED64_INPLACE
+#define RECOVERY_FIXED64_INPLACE 0
+#endif
 #if RECOVERY_NOINLINE_FIXED64_HMAC
 #define RECOVERY_FIXED64_HMAC_INLINE __noinline__
 #else
@@ -445,6 +448,38 @@ __device__ RECOVERY_FIXED64_HMAC_INLINE void hmac_sha512_finish_fixed64_words(
 
     #pragma unroll
     for (int i = 0; i < 8; i++) out_words[i] = st[i];
+}
+
+/* R5 experiment: the PBKDF2 hot loop always calls the fixed64 HMAC with
+ * the same U buffer as input and output.  Make that contract explicit so the
+ * compiler does not have to preserve a generic two-pointer alias boundary. */
+__device__ __forceinline__ void hmac_sha512_finish_fixed64_inplace(
+    const uint64_t ipad_state[8], const uint64_t opad_state[8],
+    uint64_t io_words[8]
+) {
+    uint64_t m0 = io_words[0], m1 = io_words[1], m2 = io_words[2], m3 = io_words[3];
+    uint64_t m4 = io_words[4], m5 = io_words[5], m6 = io_words[6], m7 = io_words[7];
+    uint64_t st[8];
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) st[i] = ipad_state[i];
+    sha512_compress_words(
+        st, m0, m1, m2, m3, m4, m5, m6, m7,
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL
+    );
+
+    m0 = st[0]; m1 = st[1]; m2 = st[2]; m3 = st[3];
+    m4 = st[4]; m5 = st[5]; m6 = st[6]; m7 = st[7];
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) st[i] = opad_state[i];
+    sha512_compress_words(
+        st, m0, m1, m2, m3, m4, m5, m6, m7,
+        0x8000000000000000ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 1536ULL
+    );
+
+    #pragma unroll
+    for (int i = 0; i < 8; i++) io_words[i] = st[i];
 }
 
 /* R3 experiment: keep PBKDF2 U/T as scalar u64 values and update U in place.
@@ -927,7 +962,11 @@ __device__ RECOVERY_PBKDF2_INLINE void pbkdf2_hmac_sha512_block(
 
     /* U2..Uiterations are always HMACs of an exact 64-byte digest. */
     for (int it = 1; it < iterations; it++) {
+#if RECOVERY_FIXED64_INPLACE
+        hmac_sha512_finish_fixed64_inplace(ipad_state, opad_state, U);
+#else
         hmac_sha512_finish_fixed64_words(ipad_state, opad_state, U, U);
+#endif
         #pragma unroll
         for (int i = 0; i < 8; i++) T[i] ^= U[i];
     }
