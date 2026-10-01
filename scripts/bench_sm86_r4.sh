@@ -33,12 +33,15 @@ run_case() {
   local wallall=$(grep -o "weighted_all = [0-9]*" "$logfile" | tail -1 | grep -o "[0-9]*")
   local kres=$(grep "Kernel resources:" "$logfile")
   local nver=$(grep -o "nvrtcVersion=[0-9.]*" "$logfile" | head -1)
-  local nsm=$(wc -l < "$telfile")
-  local avgp=$(awk -F, "NR>1{s+=\$2;n++} END{if(n)printf \"%.1f\", s/n}" "$telfile")
-  local maxp=$(awk -F, "NR>1{if(\$2>m)m=\$2} END{print m+0}" "$telfile")
-  local avgs=$(awk -F, "NR>1{s+=\$3;n++} END{if(n)printf \"%.0f\", s/n}" "$telfile")
-  local maxt=$(awk -F, "NR>1{if(\$5>m)m=\$5} END{print m+0}" "$telfile")
-  echo "{\"runid\":\"$runid\",\"nvrtc_dir\":\"$nvrtc_dir\",\"nvrtc_ver\":\"$nver\",\"lb_max\":$lbmax,\"lb_min\":$lbmin,\"block\":$block,\"extra_env\":\"$envline\",\"exit\":$rc,\"wall_s\":$((t1-t0)),\"steady\":${steady:-0},\"all\":${wallall:-0},\"kernel_resources\":\"$kres\",\"telemetry_rows\":$nsm,\"avg_power_W\":\"$avgp\",\"max_power_W\":\"$maxp\",\"avg_sm_clk\":\"$avgs\",\"max_temp_C\":\"$maxt\"}" >> "$LOGD/summary.jsonl"
+  local nsm=$(($(wc -l < "$telfile") - 1))
+  # Summarize only sustained GPU-work rows. Whole-run averages are biased by
+  # NVRTC compile/JIT time, which differs materially across toolkit versions.
+  local nkern=$(awk -F, 'NR>1 && ($1+0)>=99{n++} END{print n+0}' "$telfile")
+  local avgp=$(awk -F, 'NR>1 && ($1+0)>=99{s+=$2;n++} END{if(n)printf "%.1f", s/n}' "$telfile")
+  local maxp=$(awk -F, 'NR>1 && ($1+0)>=99{if($2>m)m=$2} END{print m+0}' "$telfile")
+  local avgs=$(awk -F, 'NR>1 && ($1+0)>=99{s+=$3;n++} END{if(n)printf "%.0f", s/n}' "$telfile")
+  local maxt=$(awk -F, 'NR>1 && ($1+0)>=99{if($5>m)m=$5} END{print m+0}' "$telfile")
+  echo "{\"runid\":\"$runid\",\"nvrtc_dir\":\"$nvrtc_dir\",\"nvrtc_ver\":\"$nver\",\"lb_max\":$lbmax,\"lb_min\":$lbmin,\"block\":$block,\"extra_env\":\"$envline\",\"exit\":$rc,\"wall_s\":$((t1-t0)),\"steady\":${steady:-0},\"all\":${wallall:-0},\"kernel_resources\":\"$kres\",\"telemetry_rows\":$nsm,\"kernel_rows\":$nkern,\"avg_power_W\":\"$avgp\",\"max_power_W\":\"$maxp\",\"avg_sm_clk\":\"$avgs\",\"max_temp_C\":\"$maxt\"}" >> "$LOGD/summary.jsonl"
   echo "runid=$runid nvrtc=$nver exit=$rc steady=$steady wall=$((t1-t0))s"
 }
 
