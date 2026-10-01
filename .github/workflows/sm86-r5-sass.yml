@@ -42,11 +42,19 @@ jobs:
             src/gpu/cuda/kernel.cu -o /tmp/k.cubin 2>&1 | tee /tmp/ptxas.txt
 
           cuobjdump --dump-sass /tmp/k.cubin > /tmp/sass.txt
-          awk '
-            /Function : _Z24pbkdf2_hmac_sha512_block/ {infn=1; print; next}
-            /Function : / && infn {exit}
-            infn {print}
-          ' /tmp/sass.txt > /tmp/pbkdf2.sass
+          echo "=== cuobjdump function headers ==="
+          grep -n 'Function' /tmp/sass.txt | head -40 || true
+          start=$(grep -n 'pbkdf2_hmac_sha512_block' /tmp/sass.txt | head -1 | cut -d: -f1 || true)
+          if [ -n "$start" ]; then
+            next=$(tail -n +$((start+1)) /tmp/sass.txt | grep -n 'Function' | head -1 | cut -d: -f1 || true)
+            if [ -n "$next" ]; then
+              sed -n "${start},$((start+next-1))p" /tmp/sass.txt > /tmp/pbkdf2.sass
+            else
+              tail -n +"$start" /tmp/sass.txt > /tmp/pbkdf2.sass
+            fi
+          else
+            : > /tmp/pbkdf2.sass
+          fi
 
           echo "=== PBKDF2 SASS line count ==="
           wc -l /tmp/pbkdf2.sass
