@@ -1,0 +1,83 @@
+=== exit status: 0
+=== redacted output ===
+[2J[1;1H
+   ███████╗███████╗███████╗██████╗
+   ██╔════╝██╔════╝██╔════╝██╔══██╗
+   ███████╗█████╗  █████╗  ██║  ██║
+   ╚════██║██╔══╝  ██╔══╝  ██║  ██║
+   ███████║███████╗███████╗██████╔╝
+   ╚══════╝╚══════╝╚══════╝╚═════╝ 
+
+   ██████╗ ███████╗ ██████╗ ██████╗ ██╗   ██╗███████╗██████╗ ██╗   ██╗
+   ██╔══██╗██╔════╝██╔════╝██╔═══██╗██║   ██║██╔════╝██╔══██╗╚██╗ ██╔╝
+   ██████╔╝█████╗  ██║     ██║   ██║██║   ██║█████╗  ██████╔╝ ╚████╔╝
+   ██╔══██╗██╔══╝  ██║     ██║   ██║╚██╗ ██╔╝██╔══╝  ██╔══██╗  ╚██╔╝
+   ██║  ██║███████╗╚██████╗╚██████╔╝ ╚████╔╝ ███████╗██║  ██║   ██║
+   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝   ╚═╝   
+
+
+      Built by Zun
+
+  Loading BTC Module... OK
+
+  ==================================================================
+
+
+  Wallet Recovery Setup
+  ---------------------
+  Network: Bitcoin (native SegWit, BIP84)
+  Mode: full GPU pipeline (PBKDF2 + BIP32 + secp256k1 + hash160)
+
+  Initializing CUDA... OK
+  Device: NVIDIA GeForce RTX 3070
+  GPU self-test (3 BIP84 reference vectors)... PASS
+
+  Select Your Wallet Seed Phrase Length:
+  1. 12 words
+  2. 15 words
+  3. 18 words
+  4. 21 words
+  5. 24 words
+
+  > Enter Choice: 
+  How many words are missing? (1-3): 
+  NOTE: Please enter the 11 known words in sequence.
+  Even if you are missing words, enter the known words in their correct relative order.
+
+  Known words:   Are the positions of the 1 missing word(s) known? (y/n):   Enter position number (1-12):   Enter the BTC wallet address (bc1q...): 
+
+  Configuration
+  -------------
+  Network:           BTC (native SegWit, BIP84)
+  Acceleration:      CUDA (full pipeline on GPU)
+  Chunk size:        4194304
+  Mnemonic Type:     12-word
+  Known Words:       11/12
+  Missing Words:     1
+  Positions to test: Known positions 12
+  Derivation Paths:  1 path(s) to scan
+  Total candidates:  128
+  Target Address:    bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu
+
+
+  [Path 1/1] m/84'/0'/0'/0/0
+  Scanning positions 12...
+
+
+
+  RECOVERY SUCCESSFUL
+  ===================
+
+  Derivation Path: m/84'/0'/0'/0/0
+[REDACTED PUBLIC TEST VECTOR]
+  Address:         bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu
+  ----------------------------------------------------------------
+[REDACTED PUBLIC TEST VECTOR]
+  ----------------------------------------------------------------
+
+=== CHECKS ===
+RECOVERY SUCCESSFUL present: True
+target address present    : True
+default BIP84 path present: True
+exit status zero          : True
+phrase leaked into output : False

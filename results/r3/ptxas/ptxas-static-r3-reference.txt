@@ -1,0 +1,65 @@
+Compact static ptxas references actually used in R3 hardware screening
+Source: fork CI runs 36861467496 (SM86 geometry static screen) and 36861467478 (SM86 168-reg shared follow-up),
+both at commit dae5aaa295d4a5b123274c664d984f9bc78fb454, container nvidia/cuda:12.4.1-devel-ubuntu22.00 -> nvcc -cubin -arch=sm_86 -Xptxas=-v src/gpu/cuda/kernel.cu
+
+[geometry] (128, 3)
+  === launch_bounds(128, 3) ===
+  entry: 168 regs/thread, 1744 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 340/340 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 456/456 B
+
+[geometry] (160, 3)
+  === launch_bounds(160, 3) ===
+  entry: 128 regs/thread, 1952 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 512/512 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 856/872 B
+
+[geometry] (192, 2)
+  === launch_bounds(192, 2) ===
+  entry: 168 regs/thread, 1744 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 340/340 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 456/456 B
+
+[geometry] (96, 5)
+  === launch_bounds(96, 5) ===
+  entry: 128 regs/thread, 1952 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 512/512 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 856/872 B
+
+[geometry] (256, 2)
+  === launch_bounds(256, 2) ===
+  entry: 128 regs/thread, 1952 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 512/512 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 856/872 B
+
+[geometry] (224, 2)
+  === launch_bounds(224, 2) ===
+  entry: 128 regs/thread, 1952 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 512/512 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 856/872 B
+
+[shared-combo] g168-halfshared (HS=1)
+  === (flag variant at 168-reg geometry, no nvcc geometry macro) ===
+  entry: 168 regs/thread, 1648 B cumulative stack, 8192 B smem/block, kernel spill 432/432 B
+  hmac_sha512 spill 340/340 B
+  point_add_mixed spill 0/0 B
+
+[shared-combo] g168 baseline (0,0)
+  === (flag variant at 168-reg geometry, no nvcc geometry macro) ===
+  entry: 168 regs/thread, 1744 B cumulative stack, kernel spill 0/0 B
+  hmac_sha512 spill 340/340 B
+  point_add_mixed spill 0/0 B
+  pbkdf2_hmac_sha512_block spill 456/456 B
+
+[shared-combo] g168-tshared (T=1)
+  === (flag variant at 168-reg geometry, no nvcc geometry macro) ===
+  entry: 168 regs/thread, 1648 B cumulative stack, 8192 B smem/block, kernel spill 432/432 B
+  hmac_sha512 spill 340/340 B
+  point_add_mixed spill 0/0 B
+
