@@ -60,9 +60,9 @@ impl Gpu {
                 let v: u32 = raw
                     .parse()
                     .map_err(|_| format!("invalid SEEDPHRASE_LB_MAX_THREADS={raw:?}: expected a warp multiple in 64..=256"))?;
-                if !matches!(v, 64 | 128 | 256) {
+                if !(64..=256).contains(&v) || v % 32 != 0 {
                     return Err(format!(
-                        "invalid SEEDPHRASE_LB_MAX_THREADS={v}: expected 64, 128, or 256"
+                        "invalid SEEDPHRASE_LB_MAX_THREADS={v}: expected a warp multiple in 64..=256"
                     ));
                 }
                 v
