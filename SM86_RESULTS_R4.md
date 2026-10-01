@@ -118,3 +118,28 @@ N129+A 与 N124+A 均：`RECOVERY SUCCESSFUL`、目标地址、默认路径、ex
 3. 跨轮绝对吞吐对比必须注明 NVRTC 版本与遥测画像（本轮证明 12.4/12.9 的功率-时钟画像系统性不同，
    混用会污染跨轮比较）。
 4. 主机直连 GitHub 不稳定（R4 期间 `git fetch` 超时 135 s），传 bundle 可行；README 可提示。
+
+
+## 10. Remote-agent review correction (2026-10-01)
+
+Post-run review of the raw 1 Hz telemetry found that the whole-run averages in section 5.1 mixed
+NVRTC compilation time with the steady GPU benchmark phase. N124 spends roughly 8–10 seconds longer
+in NVRTC compilation, during which GPU utilization/power/clocks are low, so its whole-run averages
+cannot be used as evidence that CUDA 12.4 generated a lower-power/lower-clock kernel.
+
+Recomputing Phase 2A telemetry using only rows with GPU utilization >=99% gives:
+
+| environment | kernel-phase rows | avg power | avg SM clock | avg temp |
+|---|---:|---:|---:|---:|
+| N124 | 380 | 227.27 W | 1955.4 MHz | 68.1 C |
+| N129 | 383 | 227.37 W | 1949.8 MHz | 69.7 C |
+
+Therefore:
+
+- the throughput result remains unchanged: N124 is +0.542% mean vs N129 on A, below the 2% promotion bar;
+- runtime resource attributes remain identical;
+- the report's earlier claim that N124 was materially lower-power/lower-clock in the kernel phase is withdrawn;
+- there is no demonstrated c/s/W advantage from this experiment;
+- the lower whole-run N124 power/clock averages were an NVRTC compile-time accounting artifact.
+
+Raw telemetry is unchanged; this section records the corrected interpretation rather than deleting or rewriting evidence.
