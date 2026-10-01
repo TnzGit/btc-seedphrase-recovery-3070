@@ -1,0 +1,94 @@
+name: SM86 R4 G128 boundary static screen
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-r4-lab
+  workflow_dispatch:
+
+jobs:
+  ptxas:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:${{ matrix.cuda }}-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda: ["12.4.1", "12.9.1"]
+        variant:
+          - a256-inline
+          - g128-inline
+          - g128-sha
+          - g128-hmac
+          - g128-sha-hmac
+          - g128-pbkdf2
+          - g128-hmac-pbkdf2
+          - g128-all
+          - g128-scalar-ut
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile static probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_threads=128
+          min_blocks=3
+          sha=0
+          hmac=0
+          pbkdf2=0
+          scalar=0
+
+          case "${{ matrix.variant }}" in
+            a256-inline)
+              max_threads=256
+              min_blocks=2
+              ;;
+            g128-inline) ;;
+            g128-sha)
+              sha=1
+              ;;
+            g128-hmac)
+              hmac=1
+              ;;
+            g128-sha-hmac)
+              sha=1
+              hmac=1
+              ;;
+            g128-pbkdf2)
+              pbkdf2=1
+              ;;
+            g128-hmac-pbkdf2)
+              hmac=1
+              pbkdf2=1
+              ;;
+            g128-all)
+              sha=1
+              hmac=1
+              pbkdf2=1
+              ;;
+            g128-scalar-ut)
+              scalar=1
+              ;;
+            *)
+              echo "unknown variant" >&2
+              exit 2
+              ;;
+          esac
+
+          echo "=== cuda=${{ matrix.cuda }} variant=${{ matrix.variant }} ==="
+          echo "launch_bounds=(${max_threads},${min_blocks}) sha=${sha} hmac=${hmac} pbkdf2=${pbkdf2} scalar=${scalar}"
+
+          nvcc --version
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MAX_THREADS=${max_threads} \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=${min_blocks} \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=${sha} \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=${hmac} \
+            -DRECOVERY_NOINLINE_PBKDF2=${pbkdf2} \
+            -DRECOVERY_PBKDF2_SCALAR_UT=${scalar} \
+            -DRECOVERY_PBKDF2_T_SHARED=0 \
+            -DRECOVERY_PBKDF2_STATE_SHARED=0 \
+            -DRECOVERY_SHA512_HALF_SHARED_SCHEDULE=0 \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/r4-${{ matrix.cuda }}-${{ matrix.variant }}.cubin
