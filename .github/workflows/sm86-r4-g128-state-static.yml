@@ -1,0 +1,45 @@
+name: SM86 R4 G128 shared-state static screen
+
+on:
+  push:
+    branches:
+      - opt/sm86-rtx3070-r4-lab
+  workflow_dispatch:
+
+jobs:
+  ptxas:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.9.1-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: g128-inline
+            state_shared: 0
+            t_shared: 0
+          - name: g128-state
+            state_shared: 1
+            t_shared: 0
+          - name: g128-state-t
+            state_shared: 1
+            t_shared: 1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile G128 shared-state probe
+        run: |
+          echo "=== ${{ matrix.name }} ==="
+          nvcc --version
+          nvcc -cubin -arch=sm_86 \
+            -DRECOVERY_LAUNCH_MAX_THREADS=128 \
+            -DRECOVERY_LAUNCH_MIN_BLOCKS=3 \
+            -DRECOVERY_NOINLINE_SHA512_WORDS=0 \
+            -DRECOVERY_NOINLINE_FIXED64_HMAC=0 \
+            -DRECOVERY_NOINLINE_PBKDF2=0 \
+            -DRECOVERY_PBKDF2_SCALAR_UT=0 \
+            -DRECOVERY_PBKDF2_T_SHARED=${{ matrix.t_shared }} \
+            -DRECOVERY_PBKDF2_STATE_SHARED=${{ matrix.state_shared }} \
+            -DRECOVERY_SHA512_HALF_SHARED_SCHEDULE=0 \
+            -Xptxas=-v \
+            src/gpu/cuda/kernel.cu \
+            -o /tmp/${{ matrix.name }}.cubin
