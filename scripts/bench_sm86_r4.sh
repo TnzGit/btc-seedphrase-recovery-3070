@@ -25,7 +25,7 @@ run_case() {
     echo "=== NVRTC probe (same dir, same LD_LIBRARY_PATH): ==="
     LD_LIBRARY_PATH="$nvrtc_dir:/usr/lib/wsl/lib" python3 /home/user/r4env/nvrtc_ver.py "$nvrtc_dir" 2>&1
   } > "$logfile" 2>&1
-  env LD_LIBRARY_PATH="$nvrtc_dir:/usr/lib/wsl/lib" SEEDPHRASE_LB_MAX_THREADS=$lbmax SEEDPHRASE_LB_MIN_BLOCKS=$lbmin SEEDPHRASE_BLOCK=$block "$BIN" --bench >> "$logfile" 2>&1
+  env $envline "$BIN" --bench >> "$logfile" 2>&1
   local rc=$?
   local t1=$(date +%s)
   kill $sampid 2>/dev/null; wait $sampid 2>/dev/null
