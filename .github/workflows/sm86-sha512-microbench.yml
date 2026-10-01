@@ -1,0 +1,53 @@
+name: SM86 SHA512 microbench static screen
+
+on:
+  push:
+    branches:
+      - research/sm86-sha512-microbench
+  workflow_dispatch:
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cargo check standalone microbench
+        run: cargo check --locked --bin sha512_sm86_microbench
+
+  cuda-static:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.9.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM86 cubin
+        shell: bash
+        run: |
+          set -euo pipefail
+          nvcc -cubin -O3 -arch=sm_86             -Xptxas=-v             research/sha512_sm86/kernel.cu             -o /tmp/sha512-sm86.cubin 2>&1 | tee /tmp/ptxas.txt
+
+          echo "=== resource usage ==="
+          cuobjdump --dump-resource-usage /tmp/sha512-sm86.cubin || true
+
+          cuobjdump --dump-sass /tmp/sha512-sm86.cubin > /tmp/all.sass
+          echo "=== function headers ==="
+          grep 'Function :' /tmp/all.sass || true
+
+          for fn in sha512_u64_kernel sha512_pair32_kernel; do
+            awk -v fn="$fn" '
+              /Function : / { active = index($0, fn) > 0; next }
+              active { print }
+            ' /tmp/all.sass > "/tmp/$fn.sass"
+
+            echo "=== $fn SASS lines/bytes ==="
+            wc -l -c "/tmp/$fn.sass"
+
+            echo "=== $fn opcode census ==="
+            sed -n 's/.*\*\/[[:space:]]*\([A-Z][A-Z0-9_.]*\).*/\1/p' "/tmp/$fn.sass"               | sort | uniq -c | sort -nr | head -40 || true
+
+            echo "=== $fn selected opcode counts ==="
+            for op in IADD3 IADD SHF LOP3 LDL STL LDG STG; do
+              printf '%s=' "$op"
+              grep -cE "[[:space:]]$op([.[:space:]])" "/tmp/$fn.sass" || true
+            done
+          done
